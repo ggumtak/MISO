@@ -108,6 +108,14 @@ const buildRequestParams = (
     return normalizedParams;
 };
 
+const getStrategyTitle = (mode: OptimizationMode) =>
+    STRATEGIES.find((item) => item.id === mode)?.title ?? mode;
+
+const getValidEV = (result?: OptimizationResult | null) => {
+    const ev = result?.metrics?.EV;
+    return Number.isFinite(ev) ? ev! : null;
+};
+
 export default function Home() {
     const [budgetInput, setBudgetInput] = useState("1000");
     const [candidates, setCandidates] = useState<Candidate[]>(
@@ -259,23 +267,131 @@ export default function Home() {
         setShareUrl(null);
 
         try {
-            const response = await optimizeDistribution(request);
-            setResult(response);
+            const buildRequest = (modeToUse: OptimizationMode): OptimizationRequest => ({
+                ...request,
+                mode: modeToUse,
+                params: buildRequestParams(modeToUse, modeParams, candidates.length),
+            });
 
-            if (response.status === "ok") {
-                setNotice(null);
-            } else if (response.status === "infeasible") {
-                setNotice({
-                    type: "warning",
-                    title: "현재 제약으로는 가능한 해가 없습니다.",
-                    notes: response.notes,
-                });
-            } else {
+            const modeOrder: OptimizationMode[] = [
+                mode,
+                ...STRATEGIES.map((strategy) => strategy.id).filter((id) => id !== mode),
+            ];
+
+            let selectedResponse: OptimizationResult | null = null;
+            let selectedMode: OptimizationMode | null = null;
+            let bestOk:
+                | {
+                      mode: OptimizationMode;
+                      response: OptimizationResult;
+                      ev: number;
+                  }
+                | null = null;
+            let lastError: OptimizationResult | null = null;
+            let lastInfeasible: OptimizationResult | null = null;
+            let initialStatus: OptimizationResult["status"] | null = null;
+            let initialEV: number | null = null;
+
+            for (const modeId of modeOrder) {
+                const response = await optimizeDistribution(buildRequest(modeId));
+
+                if (modeId === mode) {
+                    initialStatus = response.status;
+                    initialEV = getValidEV(response);
+                }
+
+                if (response.status === "infeasible") {
+                    lastInfeasible = response;
+                    continue;
+                }
+                if (response.status === "error") {
+                    lastError = response;
+                    continue;
+                }
+
+                const ev = getValidEV(response);
+                if (ev === null) continue;
+
+                if (!bestOk || ev > bestOk.ev) {
+                    bestOk = { mode: modeId, response, ev };
+                }
+
+                if (ev >= budgetValue) {
+                    selectedResponse = response;
+                    selectedMode = modeId;
+                    break;
+                }
+            }
+
+            if (!selectedResponse) {
+                if (bestOk) {
+                    setNotice({
+                        type: "error",
+                        title: "모든 전략에서 기대치가 손해입니다.",
+                        notes: [
+                            "어떤 전략으로도 EV가 총 투표권(B) 이상이 되지 않습니다.",
+                            "확률/배당/투표권 값을 조정해 주세요.",
+                        ],
+                    });
+                    setResult(null);
+                    return;
+                }
+
+                if (lastInfeasible) {
+                    setResult(lastInfeasible);
+                    setNotice({
+                        type: "warning",
+                        title: "현재 제약으로는 가능한 해가 없습니다.",
+                        notes: lastInfeasible.notes,
+                    });
+                    return;
+                }
+
+                if (lastError) {
+                    setResult(lastError);
+                    setNotice({
+                        type: "error",
+                        title: "최적화에 실패했습니다.",
+                        notes: lastError.notes ?? ["서버에서 오류 응답이 왔습니다."],
+                    });
+                    return;
+                }
+
                 setNotice({
                     type: "error",
                     title: "최적화에 실패했습니다.",
-                    notes: response.notes ?? ["서버에서 오류 응답이 왔습니다."],
+                    notes: ["알 수 없는 오류가 발생했습니다."],
                 });
+                return;
+            }
+
+            setResult(selectedResponse);
+
+            if (selectedMode && selectedMode !== mode) {
+                const originalTitle = getStrategyTitle(mode);
+                const nextTitle = getStrategyTitle(selectedMode);
+                const nextEV = getValidEV(selectedResponse);
+                const reason =
+                    initialStatus === "infeasible"
+                        ? "선택한 전략은 현재 제약에서 불가능했습니다."
+                        : initialStatus === "error"
+                            ? "선택한 전략 계산 중 오류가 발생했습니다."
+                            : initialEV !== null
+                                ? `선택한 전략 EV ${initialEV.toFixed(1)} < B ${budgetValue}`
+                                : "선택한 전략의 기대치를 확인할 수 없습니다.";
+
+                setMode(selectedMode);
+                setNotice({
+                    type: "info",
+                    title: "기대치가 손익분기(B)보다 낮아 다른 전략으로 전환했습니다.",
+                    notes: [
+                        `선택한 전략: ${originalTitle}`,
+                        reason,
+                        `전환 전략: ${nextTitle}${nextEV !== null ? ` (EV ${nextEV.toFixed(1)})` : ""}`,
+                    ],
+                });
+            } else {
+                setNotice(null);
             }
         } catch (error) {
             console.error(error);
@@ -546,6 +662,10 @@ export default function Home() {
                         )}
                     </div>
                 )}
+
+                <footer className="pt-6 text-center text-xs text-muted-foreground">
+                    제작: 껌딱
+                </footer>
             </section>
         </main>
     );
