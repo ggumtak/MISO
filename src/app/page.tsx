@@ -61,27 +61,27 @@ const createCandidate = (id: string, name: string, pInput: string, mInput: strin
 });
 
 const DEFAULT_CANDIDATES: Candidate[] = [
-    createCandidate("1", "Candidate A", "50", "1.8"),
-    createCandidate("2", "Candidate B", "30", "3.0"),
-    createCandidate("3", "Candidate C", "10", "8.0"),
-    createCandidate("4", "Candidate D", "5", "15.0"),
-    createCandidate("5", "Candidate E", "5", "15.0"),
+    createCandidate("1", "캐릭터 A", "50", "1.8"),
+    createCandidate("2", "캐릭터 B", "30", "3.0"),
+    createCandidate("3", "캐릭터 C", "10", "8.0"),
+    createCandidate("4", "캐릭터 D", "5", "15.0"),
+    createCandidate("5", "캐릭터 E", "5", "15.0"),
 ];
 
 const SAMPLE_CANDIDATES: Candidate[] = [
-    createCandidate("t1", "Favorite", "90", "1.2"),
-    createCandidate("t2", "Dark Horse", "1", "50"),
-    createCandidate("t3", "Mid Tier", "4", "20"),
-    createCandidate("t4", "Long Shot", "1", "50"),
-    createCandidate("t5", "Another Mid", "4", "20"),
+    createCandidate("t1", "인기 1위", "90", "1.2"),
+    createCandidate("t2", "다크호스", "1", "50"),
+    createCandidate("t3", "중위권", "4", "20"),
+    createCandidate("t4", "대반전", "1", "50"),
+    createCandidate("t5", "복병", "4", "20"),
 ];
 
 const getBudgetError = (input: string) => {
-    if (!input.trim()) return "Budget is required.";
+    if (!input.trim()) return "투표권을 입력해 주세요.";
     const value = Number(input);
-    if (!Number.isFinite(value)) return "Budget must be a number.";
-    if (!Number.isInteger(value)) return "Budget must be an integer.";
-    if (value <= 0) return "Budget must be positive.";
+    if (!Number.isFinite(value)) return "투표권은 숫자여야 합니다.";
+    if (!Number.isInteger(value)) return "투표권은 정수여야 합니다.";
+    if (value <= 0) return "투표권은 1 이상이어야 합니다.";
     return null;
 };
 
@@ -132,13 +132,13 @@ export default function Home() {
         candidates.forEach((candidate) => {
             const candidateError: { name?: string; p?: string; m?: string } = {};
             if (!candidate.name.trim()) {
-                candidateError.name = "Name is required.";
+                candidateError.name = "캐릭터 이름을 입력해 주세요.";
             }
             if (!Number.isFinite(candidate.p) || candidate.p < 0 || candidate.p > 1) {
-                candidateError.p = "Probability must be between 0 and 100%.";
+                candidateError.p = "우승 확률은 0~100% 범위여야 합니다.";
             }
             if (!Number.isFinite(candidate.m) || candidate.m <= 0) {
-                candidateError.m = "Multiplier must be positive.";
+                candidateError.m = "배당 배율은 0보다 커야 합니다.";
             }
             if (Object.keys(candidateError).length > 0) {
                 errors[candidate.id] = candidateError;
@@ -203,7 +203,7 @@ export default function Home() {
                     const mInput = typeof candidate.m === "string" ? candidate.m : String(candidate.m ?? "1");
                     return createCandidate(
                         `s-${index}`,
-                        candidate.name ?? `Candidate ${index + 1}`,
+                        candidate.name ?? `캐릭터 ${index + 1}`,
                         pInput,
                         mInput
                     );
@@ -211,7 +211,7 @@ export default function Home() {
                 setCandidates(hydrated);
             }
         } catch (error) {
-            console.warn("Failed to parse shared state.", error);
+            console.warn("공유 데이터를 해석하지 못했습니다.", error);
         }
     }, []);
 
@@ -234,8 +234,8 @@ export default function Home() {
         if (!canOptimize || budgetValue === null) {
             setNotice({
                 type: "error",
-                title: "Fix the highlighted inputs before optimizing.",
-                notes: ["Budget and candidate fields must be valid numbers."],
+                title: "강조된 입력을 먼저 수정해 주세요.",
+                notes: ["투표권과 캐릭터 입력은 유효한 숫자여야 합니다."],
             });
             return;
         }
@@ -267,22 +267,22 @@ export default function Home() {
             } else if (response.status === "infeasible") {
                 setNotice({
                     type: "warning",
-                    title: "No feasible solution under current constraints.",
+                    title: "현재 제약으로는 가능한 해가 없습니다.",
                     notes: response.notes,
                 });
             } else {
                 setNotice({
                     type: "error",
-                    title: "Optimization failed.",
-                    notes: response.notes ?? ["Backend returned an error response."],
+                    title: "최적화에 실패했습니다.",
+                    notes: response.notes ?? ["서버에서 오류 응답이 왔습니다."],
                 });
             }
         } catch (error) {
             console.error(error);
             setNotice({
                 type: "error",
-                title: "Network error.",
-                notes: ["Unable to reach optimization backend."],
+                title: "네트워크 오류가 발생했습니다.",
+                notes: ["최적화 서버에 연결할 수 없습니다."],
             });
         } finally {
             setLoading(false);
@@ -291,7 +291,7 @@ export default function Home() {
 
     const handleShare = async () => {
         if (!canOptimize || budgetValue === null) {
-            setShareMessage("Fix inputs before creating a share link.");
+            setShareMessage("공유 링크를 만들려면 입력을 먼저 수정해 주세요.");
             return;
         }
 
@@ -314,11 +314,11 @@ export default function Home() {
 
         try {
             await navigator.clipboard.writeText(url);
-            setShareMessage("Share link copied to clipboard.");
+            setShareMessage("공유 링크를 복사했어요.");
             setShareUrl(null);
         } catch (error) {
-            console.warn("Clipboard copy failed.", error);
-            setShareMessage("Copy failed. Use the link below.");
+            console.warn("클립보드 복사에 실패했습니다.", error);
+            setShareMessage("복사에 실패했어요. 아래 링크를 사용하세요.");
             setShareUrl(url);
         }
     };
@@ -340,16 +340,16 @@ export default function Home() {
         if (Number.isFinite(result.metrics.G)) {
             const g = result.metrics.G!;
             const diff = g - budgetValue;
-            parts.push(`worst-case payout ${Math.floor(g)} (${diff >= 0 ? "+" : ""}${diff} vs B)`);
+            parts.push(`최악 시 지급 ${Math.floor(g)} (${diff >= 0 ? "+" : ""}${diff} / 총 투표권 B 대비)`);
         }
         if (Number.isFinite(result.metrics.EV)) {
-            parts.push(`expected value ${result.metrics.EV!.toFixed(1)}`);
+            parts.push(`기댓값 ${result.metrics.EV!.toFixed(1)}`);
         }
         if (Number.isFinite(result.metrics.P_loss)) {
-            parts.push(`loss probability ${(result.metrics.P_loss! * 100).toFixed(1)}%`);
+            parts.push(`손실 확률 ${(result.metrics.P_loss! * 100).toFixed(1)}%`);
         }
         if (parts.length === 0) return null;
-        return `This allocation targets ${parts.join(", ")}.`;
+        return `이 배분안은 ${parts.join(", ")}를 목표로 합니다.`;
     }, [result, budgetValue]);
 
     return (
@@ -361,20 +361,20 @@ export default function Home() {
                             <Coins className="text-primary w-5 h-5" />
                         </div>
                         <div className="leading-tight">
-                            <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-                                Terun Calc
+                            <p className="text-[10px] tracking-[0.2em] text-muted-foreground">
+                                테일즈런너 설날 떡국 빨리 먹기 대회
                             </p>
                             <h1 className="font-display text-lg font-semibold">
-                                Allocation Optimizer
+                                캐릭터 투표 배분 계산기
                             </h1>
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
                         <Button variant="secondary" size="sm" onClick={fillTemplate}>
-                            Load Sample
+                            샘플 불러오기
                         </Button>
                         <Button variant="outline" size="sm" onClick={handleShare}>
-                            <Share2 className="w-4 h-4 mr-2" /> Share Link
+                            <Share2 className="w-4 h-4 mr-2" /> 공유 링크
                         </Button>
                     </div>
                 </div>
@@ -392,6 +392,18 @@ export default function Home() {
             </header>
 
             <section className="max-w-6xl mx-auto px-4 py-8 space-y-8">
+                <Card className="bg-card/70 border-border/70">
+                    <CardContent className="pt-6 text-sm text-muted-foreground space-y-3">
+                        <p className="font-semibold text-foreground">
+                            대회 안내: 우승 캐릭터에게 투표권을 효율적으로 배분하는 계산기
+                        </p>
+                        <ul className="list-disc pl-5 space-y-1">
+                            <li>각 캐릭터의 우승 확률(%)과 배당 배율(M)을 입력합니다.</li>
+                            <li>전략을 고르면 목표(G, EV, 손실 확률 등)에 맞춰 배분안을 계산합니다.</li>
+                            <li>결과에서 추천 배분, 우승 시 지급액, 위험 지표를 확인하세요.</li>
+                        </ul>
+                    </CardContent>
+                </Card>
                 <div className="grid grid-cols-1 lg:grid-cols-[1.35fr_1fr] gap-8">
                     <div className="space-y-6 animate-fade-up">
                         <BudgetInput value={budgetInput} onChange={setBudgetInput} error={budgetError} />
@@ -407,9 +419,9 @@ export default function Home() {
 
                     <div className="space-y-6 animate-fade-up" style={{ animationDelay: "120ms" }}>
                         <div className="flex items-center justify-between">
-                            <h3 className="text-lg font-semibold">Strategy</h3>
+                            <h3 className="text-lg font-semibold">전략</h3>
                             <Badge variant="outline" className="text-muted-foreground">
-                                Rounding: floor
+                                내림(floor) 고정
                             </Badge>
                         </div>
                         <ModeSelector
@@ -431,12 +443,12 @@ export default function Home() {
                             ) : (
                                 <Play className="mr-2 h-5 w-5 fill-current" />
                             )}
-                            {loading ? "Optimizing..." : "Run Optimization"}
+                            {loading ? "계산 중..." : "최적화 실행"}
                         </Button>
 
                         {!canOptimize && (
                             <p className="text-xs text-muted-foreground">
-                                Fix the highlighted inputs to enable optimization.
+                                강조된 입력을 수정하면 실행할 수 있어요.
                             </p>
                         )}
 
@@ -444,8 +456,8 @@ export default function Home() {
                             <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 flex items-start gap-2">
                                 <AlertTriangle className="w-4 h-4 mt-0.5" />
                                 <span>
-                                    Probabilities sum to {((totalProbability ?? 0) * 100).toFixed(1)}%.
-                                    The backend will use them as-is.
+                                    확률 합계가 {((totalProbability ?? 0) * 100).toFixed(1)}%입니다.
+                                    입력값 그대로 계산됩니다.
                                 </span>
                             </div>
                         )}
@@ -485,7 +497,7 @@ export default function Home() {
                                         onClick={handleOptimize}
                                     >
                                         <RefreshCcw className="w-3.5 h-3.5 mr-2" />
-                                        Retry
+                                        재시도
                                     </Button>
                                 )}
                             </div>
@@ -496,14 +508,14 @@ export default function Home() {
                 {showResults && budgetValue !== null && (
                     <div className="space-y-6 animate-fade-up">
                         <div className="flex items-center gap-3 border-b border-border/60 pb-4">
-                            <h2 className="text-2xl font-display font-semibold">Results</h2>
+                            <h2 className="text-2xl font-display font-semibold">결과</h2>
                             {activeStrategy?.title && (
                                 <Badge variant="outline" className="text-muted-foreground">
                                     {activeStrategy.title}
                                 </Badge>
                             )}
                             {result?.status === "infeasible" && (
-                                <Badge variant="destructive">Infeasible</Badge>
+                                <Badge variant="destructive">불가능</Badge>
                             )}
                         </div>
 
@@ -524,7 +536,7 @@ export default function Home() {
 
                         {result?.status === "ok" && result?.notes && result.notes.length > 0 && (
                             <div className="rounded-lg border border-border/60 bg-card p-4 text-sm text-muted-foreground">
-                                <p className="font-semibold text-foreground mb-2">Notes</p>
+                                <p className="font-semibold text-foreground mb-2">메모</p>
                                 <ul className="list-disc pl-5 space-y-1">
                                     {result.notes.map((note, index) => (
                                         <li key={`${note}-${index}`}>{note}</li>

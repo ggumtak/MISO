@@ -60,7 +60,7 @@ export function CandidateTable({
             ...candidates,
             {
                 id: crypto.randomUUID(),
-                name: `Candidate ${candidates.length + 1}`,
+                name: `캐릭터 ${candidates.length + 1}`,
                 p: 0,
                 m: 2.0,
                 pInput: "0",
@@ -78,33 +78,33 @@ export function CandidateTable({
         <div className="space-y-4">
             <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold flex items-center gap-2">
-                    Candidates
+                    캐릭터 목록
                     {!isProbabilityValid && (
                         <Badge variant="destructive" className="ml-2 animate-pulse">
-                            Total P: {totalDisplay}
+                            확률 합계: {totalDisplay}
                         </Badge>
                     )}
                     {isProbabilityValid && (
                         <Badge variant="success" className="ml-2">
-                            Total P: 100%
+                            확률 합계: 100%
                         </Badge>
                     )}
                 </h3>
                 <div className="flex gap-2">
                     {!isProbabilityValid && (
-                        <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={onNormalize}
-                            disabled={!totalProbability || totalProbability <= 0}
-                            className="h-8"
-                        >
-                            <Wand2 className="w-3 h-3 mr-2" />
-                            Auto-Normalize
-                        </Button>
+                            <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={onNormalize}
+                                disabled={!totalProbability || totalProbability <= 0}
+                                className="h-8"
+                            >
+                                <Wand2 className="w-3 h-3 mr-2" />
+                                자동 정규화
+                            </Button>
                     )}
                     <Button variant="outline" size="sm" onClick={addCandidate} className="h-8">
-                        <Plus className="w-4 h-4 mr-2" /> Add
+                        <Plus className="w-4 h-4 mr-2" /> 추가
                     </Button>
                 </div>
             </div>
@@ -113,9 +113,9 @@ export function CandidateTable({
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead className="w-[40%]">Name</TableHead>
-                            <TableHead className="w-[25%]">Prob (%)</TableHead>
-                            <TableHead className="w-[25%]">Multiplier (M)</TableHead>
+                            <TableHead className="w-[40%]">캐릭터</TableHead>
+                            <TableHead className="w-[25%]">우승 확률(%)</TableHead>
+                            <TableHead className="w-[25%]">배당 배율(M)</TableHead>
                             <TableHead className="w-[10%]"></TableHead>
                         </TableRow>
                     </TableHeader>
@@ -181,13 +181,13 @@ export function CandidateTable({
             {!isProbabilityValid && (
                 <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
                     <AlertTriangle className="w-4 h-4" />
-                    <span>Probabilities should sum to 100%. Current: {totalDisplay}</span>
+                    <span>확률 합계는 100%가 되어야 합니다. 현재: {totalDisplay}</span>
                 </div>
             )}
             {hasFieldErrors && (
                 <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
                     <AlertTriangle className="w-4 h-4" />
-                    <span>Fix highlighted fields to continue.</span>
+                    <span>강조된 입력을 수정해 주세요.</span>
                 </div>
             )}
         </div>

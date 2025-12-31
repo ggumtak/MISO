@@ -15,7 +15,7 @@ export function BudgetInput({ value, onChange, error }: BudgetInputProps) {
             <CardHeader className="pb-2">
                 <CardTitle className="text-lg flex items-center gap-2 text-primary">
                     <Coins className="w-5 h-5" />
-                    Total Budget (B)
+                    총 투표권 (B)
                 </CardTitle>
             </CardHeader>
             <CardContent>
@@ -33,7 +33,7 @@ export function BudgetInput({ value, onChange, error }: BudgetInputProps) {
                         )}
                     />
                     <div className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground font-mono text-sm">
-                        VOTES
+                        표
                     </div>
                 </div>
                 {error ? (
@@ -43,7 +43,7 @@ export function BudgetInput({ value, onChange, error }: BudgetInputProps) {
                     </p>
                 ) : (
                     <p className="text-xs text-muted-foreground mt-2">
-                        Enter the total number of votes you want to distribute.
+                        보유한 투표권 총량을 입력하세요.
                     </p>
                 )}
             </CardContent>

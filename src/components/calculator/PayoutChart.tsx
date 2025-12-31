@@ -28,7 +28,7 @@ export function PayoutChart({ result, budget }: PayoutChartProps) {
     if (data.length === 0) {
         return (
             <div className="w-full h-[300px] bg-card/30 rounded-xl border p-4 text-sm text-muted-foreground">
-                Payout chart will appear once results are available.
+                결과가 생성되면 지급 그래프가 표시됩니다.
             </div>
         );
     }
@@ -37,7 +37,7 @@ export function PayoutChart({ result, budget }: PayoutChartProps) {
 
     return (
         <div className="w-full h-[300px] bg-card/30 rounded-xl border p-4">
-            <h3 className="font-semibold mb-4 text-sm text-muted-foreground">Payout Scenarios</h3>
+            <h3 className="font-semibold mb-4 text-sm text-muted-foreground">우승 시나리오별 지급</h3>
             <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(15,23,42,0.08)" vertical={false} />
@@ -64,9 +64,9 @@ export function PayoutChart({ result, budget }: PayoutChartProps) {
                                 return (
                                     <div className="bg-background border rounded-lg p-2 shadow-xl text-xs">
                                         <p className="font-bold">{label}</p>
-                                        <p className="text-muted-foreground">Payout: {val}</p>
+                                        <p className="text-muted-foreground">지급: {val}</p>
                                         <p className={profit >= 0 ? "text-emerald-500" : "text-destructive"}>
-                                            Profit: {profit > 0 ? "+" : ""}{profit}
+                                            수익: {profit > 0 ? "+" : ""}{profit}
                                         </p>
                                     </div>
                                 );
@@ -86,7 +86,7 @@ export function PayoutChart({ result, budget }: PayoutChartProps) {
                     </Bar>
                 </BarChart>
             </ResponsiveContainer>
-            <p className="text-xs text-muted-foreground mt-3">Break-even at {budget}</p>
+            <p className="text-xs text-muted-foreground mt-3">손익분기: {budget}</p>
         </div>
     );
 }

@@ -78,7 +78,7 @@ export function ModeSelector({
                 <Card className="bg-muted/30 border-dashed">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-sm uppercase tracking-wider text-muted-foreground">
-                            {activeStrategy.title} Configuration
+                            {activeStrategy.title} 설정
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="grid gap-6 pt-4">

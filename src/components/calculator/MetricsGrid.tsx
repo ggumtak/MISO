@@ -27,7 +27,7 @@ export function MetricsGrid({ result, budget }: MetricsGridProps) {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Card className="bg-card/50 border-primary/20">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Worst Case (G)</CardTitle>
+                    <CardTitle className="text-sm font-medium text-muted-foreground">최악 시 지급(G)</CardTitle>
                     <ShieldAlert className="h-4 w-4 text-primary" />
                 </CardHeader>
                 <CardContent>
@@ -42,15 +42,15 @@ export function MetricsGrid({ result, budget }: MetricsGridProps) {
                         }`}
                     >
                         {Number.isFinite(profitWorst)
-                            ? `${profitWorst! >= 0 ? "+" : ""}${profitWorst!.toFixed(0)} vs B`
-                            : "Awaiting results"}
+                            ? `${profitWorst! >= 0 ? "+" : ""}${profitWorst!.toFixed(0)} (B 대비)`
+                            : "결과 대기"}
                     </p>
                 </CardContent>
             </Card>
 
             <Card className="bg-card/50 border-primary/20">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Expectation (EV)</CardTitle>
+                    <CardTitle className="text-sm font-medium text-muted-foreground">기댓값(EV)</CardTitle>
                     <TrendingUp className="h-4 w-4 text-blue-400" />
                 </CardHeader>
                 <CardContent>
@@ -63,26 +63,26 @@ export function MetricsGrid({ result, budget }: MetricsGridProps) {
                         }`}
                     >
                         {Number.isFinite(profitEV)
-                            ? `${profitEV! >= 0 ? "+" : ""}${profitEV!.toFixed(1)} vs B`
-                            : "Awaiting results"}
+                            ? `${profitEV! >= 0 ? "+" : ""}${profitEV!.toFixed(1)} (B 대비)`
+                            : "결과 대기"}
                     </p>
                 </CardContent>
             </Card>
 
             <Card className="bg-card/50 border-primary/20">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Expected Profit (EP)</CardTitle>
+                    <CardTitle className="text-sm font-medium text-muted-foreground">기대 수익(EP)</CardTitle>
                     <BadgeDollarSign className="h-4 w-4 text-emerald-500" />
                 </CardHeader>
                 <CardContent>
                     <div className="text-2xl font-bold font-mono">{formatNumber(EP, 1)}</div>
-                    <p className="text-xs text-muted-foreground">EV minus budget</p>
+                    <p className="text-xs text-muted-foreground">EV - B</p>
                 </CardContent>
             </Card>
 
             <Card className="bg-card/50 border-primary/20">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Loss Prob</CardTitle>
+                    <CardTitle className="text-sm font-medium text-muted-foreground">손실 확률</CardTitle>
                     <Activity className="h-4 w-4 text-orange-400" />
                 </CardHeader>
                 <CardContent>
@@ -90,7 +90,7 @@ export function MetricsGrid({ result, budget }: MetricsGridProps) {
                         {Number.isFinite(P_loss) ? `${(P_loss! * 100).toFixed(1)}%` : "--"}
                     </div>
                     <p className="text-xs text-muted-foreground">
-                        Chance to get &lt; {budget}
+                        {budget} 미만 확률
                     </p>
                 </CardContent>
             </Card>
@@ -98,13 +98,13 @@ export function MetricsGrid({ result, budget }: MetricsGridProps) {
             {P_ge_T !== undefined && (
                 <Card className="bg-card/50 border-primary/20">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium text-muted-foreground">Target Prob</CardTitle>
+                        <CardTitle className="text-sm font-medium text-muted-foreground">목표 달성 확률</CardTitle>
                         <BadgeDollarSign className="h-4 w-4 text-cyan-500" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold font-mono">{(P_ge_T * 100).toFixed(1)}%</div>
                         <p className="text-xs text-muted-foreground">
-                            Chance to hit Target
+                            목표 지급액 이상 확률
                         </p>
                     </CardContent>
                 </Card>

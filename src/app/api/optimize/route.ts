@@ -498,11 +498,11 @@ export async function POST(request: Request) {
                 headers: { "Content-Type": contentType },
             });
         } catch (error) {
-            console.error("Optimize proxy failed:", error);
+            console.error("최적화 프록시 실패:", error);
             return NextResponse.json(
                 {
                     status: "error",
-                    notes: ["Unable to reach optimization backend."],
+                    notes: ["최적화 서버에 연결할 수 없습니다."],
                 },
                 { status: 502 }
             );
@@ -513,26 +513,26 @@ export async function POST(request: Request) {
     try {
         parsed = (await request.json()) as OptimizeRequest;
     } catch {
-        return jsonError(["Invalid JSON payload."]);
+        return jsonError(["잘못된 JSON 요청입니다."]);
     }
 
     if (!parsed || typeof parsed !== "object") {
-        return jsonError(["Invalid request payload."]);
+        return jsonError(["요청 형식이 올바르지 않습니다."]);
     }
 
     const { budget, candidates, rounding, mode } = parsed;
     const params = (parsed.params ?? {}) as Record<string, unknown>;
 
     if (!Number.isInteger(budget) || budget <= 0) {
-        return jsonError(["Budget must be a positive integer."]);
+        return jsonError(["투표권은 1 이상의 정수여야 합니다."]);
     }
 
     if (!Array.isArray(candidates) || candidates.length === 0) {
-        return jsonError(["At least one candidate is required."]);
+        return jsonError(["캐릭터를 최소 1명 이상 입력해 주세요."]);
     }
 
     if (rounding !== "floor") {
-        return jsonError(["Only floor rounding is supported."]);
+        return jsonError(["내림(floor)만 지원합니다."]);
     }
 
     const notes: string[] = [];
@@ -541,25 +541,25 @@ export async function POST(request: Request) {
 
     for (const candidate of candidates) {
         if (!candidate || typeof candidate !== "object") {
-            return jsonError(["Candidate entries must be objects."]);
+            return jsonError(["캐릭터 입력 형식이 올바르지 않습니다."]);
         }
         const name = typeof candidate.name === "string" ? candidate.name.trim() : "";
         if (!name) {
-            return jsonError(["Candidate name is required."]);
+            return jsonError(["캐릭터 이름을 입력해 주세요."]);
         }
         if (nameSet.has(name)) {
-            notes.push(`Duplicate candidate name detected: ${name}.`);
+            notes.push(`중복된 캐릭터 이름이 있습니다: ${name}.`);
         }
         nameSet.add(name);
 
         const p = candidate.p;
         if (!Number.isFinite(p) || p < 0) {
-            return jsonError([`Invalid probability for ${name}.`]);
+            return jsonError([`${name}의 확률이 올바르지 않습니다.`]);
         }
 
         const ratio = parseMultiplier(candidate.m);
         if (!ratio) {
-            return jsonError([`Invalid multiplier for ${name}.`]);
+            return jsonError([`${name}의 배당 배율이 올바르지 않습니다.`]);
         }
 
         candidateData.push({ name, p, numer: ratio.numer, denom: ratio.denom });
@@ -571,19 +571,19 @@ export async function POST(request: Request) {
             candidateData.forEach((c) => {
                 c.p = c.p / sumP;
             });
-            notes.push("Probabilities normalized to sum to 1.");
+            notes.push("확률 합계를 1로 정규화했습니다.");
             sumP = 1;
         }
     } else if (sumP > 1.5 && sumP <= 100.5) {
         candidateData.forEach((c) => {
             c.p = c.p / 100;
         });
-        notes.push("Probabilities interpreted as percent inputs.");
+        notes.push("확률을 백분율 입력으로 해석했습니다.");
         sumP = candidateData.reduce((sum, c) => sum + c.p, 0);
     }
 
     if (Math.abs(sumP - 1) > 0.01) {
-        notes.push(`Probabilities sum to ${sumP.toFixed(4)}. Using values as-is.`);
+        notes.push(`확률 합계가 ${sumP.toFixed(4)}입니다. 입력값 그대로 계산합니다.`);
     }
 
     const payouts = candidateData.map((candidate) =>
@@ -604,7 +604,7 @@ export async function POST(request: Request) {
             allocation = optimizeEVWithMinPayout(payouts, probabilities, budget, budget);
             if (!allocation) {
                 status = "infeasible";
-                notes.push("No solution satisfies G >= B. Returning all-weather fallback.");
+                notes.push("G ≥ B 조건을 만족하는 해가 없습니다. 올웨더 해로 대체합니다.");
                 allocation = optimizeAllWeather(payouts, probabilities, budget);
             }
             break;
@@ -612,49 +612,49 @@ export async function POST(request: Request) {
         case "beast_ev_under_maxloss": {
             let maxLossPct = Number(params.maxLossPct);
             if (!Number.isFinite(maxLossPct)) {
-                return jsonError(["maxLossPct is required."]);
+                return jsonError(["maxLossPct 값이 필요합니다."]);
             }
             if (maxLossPct > 1 && maxLossPct <= 100) {
                 maxLossPct /= 100;
-                notes.push("maxLossPct interpreted as percent.");
+                notes.push("maxLossPct를 백분율로 해석했습니다.");
             }
             if (maxLossPct < 0 || maxLossPct > 1) {
-                return jsonError(["maxLossPct must be between 0 and 1."]);
+                return jsonError(["maxLossPct는 0~1 범위여야 합니다."]);
             }
             const minG = Math.floor(budget * (1 - maxLossPct));
             allocation = optimizeEVWithMinPayout(payouts, probabilities, budget, minG);
             if (!allocation) {
                 status = "infeasible";
-                notes.push("No allocation satisfies the max loss constraint.");
+                notes.push("최악 손실 제약을 만족하는 해가 없습니다.");
             }
             break;
         }
         case "ev_under_lossprob_cap": {
             let cap = Number(params.lossProbCap);
             if (!Number.isFinite(cap)) {
-                return jsonError(["lossProbCap is required."]);
+                return jsonError(["lossProbCap 값이 필요합니다."]);
             }
             if (cap > 1 && cap <= 100) {
                 cap /= 100;
-                notes.push("lossProbCap interpreted as percent.");
+                notes.push("lossProbCap을 백분율로 해석했습니다.");
             }
             if (cap < 0 || cap > 1) {
-                return jsonError(["lossProbCap must be between 0 and 1."]);
+                return jsonError(["lossProbCap은 0~1 범위여야 합니다."]);
             }
             allocation = optimizeEVUnderLossCap(payouts, probabilities, budget, cap);
             if (!allocation) {
                 status = "infeasible";
-                notes.push("No allocation satisfies the loss probability cap.");
+                notes.push("손실 확률 상한을 만족하는 해가 없습니다.");
             }
             break;
         }
         case "maximize_prob_ge_target": {
             const rawTarget = Number(params.targetT);
             if (!Number.isFinite(rawTarget)) {
-                return jsonError(["targetT is required."]);
+                return jsonError(["targetT 값이 필요합니다."]);
             }
             if (!Number.isInteger(rawTarget) || rawTarget < 0) {
-                return jsonError(["targetT must be a non-negative integer."]);
+                return jsonError(["targetT는 0 이상의 정수여야 합니다."]);
             }
             targetT = rawTarget;
             allocation = optimizeMaximizeProbTarget(payouts, probabilities, budget, targetT);
@@ -663,23 +663,23 @@ export async function POST(request: Request) {
         case "sparse_k_focus": {
             const rawK = Number(params.kSparse);
             if (!Number.isFinite(rawK)) {
-                return jsonError(["kSparse is required."]);
+                return jsonError(["kSparse 값이 필요합니다."]);
             }
             if (!Number.isInteger(rawK) || rawK < 1) {
-                return jsonError(["kSparse must be an integer >= 1."]);
+                return jsonError(["kSparse는 1 이상의 정수여야 합니다."]);
             }
             allocation = optimizeSparseKFocus(payouts, probabilities, budget, rawK);
             if (!allocation) {
                 status = "infeasible";
-                notes.push("No allocation satisfies the sparsity constraint.");
+                notes.push("집중(K) 제약을 만족하는 해가 없습니다.");
             }
             break;
         }
         case "frontier_generate": {
-            return jsonError(["frontier_generate is not supported in the bundled backend."], 400);
+            return jsonError(["frontier_generate는 내장 백엔드에서 지원하지 않습니다."], 400);
         }
         default: {
-            return jsonError([`Unknown mode: ${mode}`], 400);
+            return jsonError([`지원하지 않는 모드입니다: ${mode}`], 400);
         }
     }
 

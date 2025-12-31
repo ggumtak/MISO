@@ -1,34 +1,66 @@
-# Terun Allocation Optimizer (Frontend)
+# 테일즈런너 설날 떡국 빨리 먹기 대회 | 캐릭터 투표 배분 계산기
 
-Modern Next.js + TypeScript frontend for the voting allocation optimizer. The UI validates inputs, calls the backend optimizer, and renders allocation, payouts, and metrics.
+우승 캐릭터에게 투표권을 어떻게 배분하면 좋은지, 여러 전략 기준으로 **직관적으로 계산**해 주는 웹 앱입니다.  
+입력은 “우승 확률(%)”과 “배당 배율(M)”이며, 결과로 추천 배분과 지급/위험 지표를 보여줍니다.
 
-## Quick Start
+## 처음 보는 사람을 위한 한 줄 요약
+“누가 우승할지(확률) + 얼마나 준다고 가정할지(배율)”만 입력하면, **최적 배분**과 **리스크 지표**를 자동으로 알려줍니다.
 
-1. Install dependencies:
+## 바로 실행하기 (로컬)
+
+1. Node.js 18+ 설치
+2. 의존성 설치
    ```
    npm install
    ```
-2. Run the dev server:
+3. 개발 서버 실행
    ```
    npm run dev
    ```
+4. 브라우저에서 `http://localhost:3000` 접속
 
-## Environment (Optional)
+## 사용 방법 (직관 설명)
 
-- `BACKEND_BASE_URL`: If set, the app proxies to an external backend (`${BACKEND_BASE_URL}/api/optimize`).
-- If not set, the built-in Next.js API route computes the optimization directly.
+1. **총 투표권(B)** 입력
+2. 캐릭터별 **우승 확률(%)**과 **배당 배율(M)** 입력
+3. **전략 선택**
+4. **최적화 실행**
 
-## API Contract (Frontend -> Backend)
+결과 화면에서 다음을 확인합니다:
+- **추천 배분**: 각 캐릭터에 얼마를 배분해야 하는지
+- **우승 시 지급액**: 해당 캐릭터가 우승했을 때 받을 금액
+- **지표**: 최악 시 지급(G), 기댓값(EV), 손실 확률 등
 
-### Endpoint
-`POST /api/optimize`
+## 지표 설명
 
-### Request JSON
+- **G (최악 시 지급)**: 어떤 캐릭터가 우승하더라도 최소로 받는 금액
+- **EV (기댓값)**: 확률을 반영한 평균 기대 금액
+- **EP (기대 수익)**: EV - B
+- **P_loss (손실 확률)**: 지급액이 B보다 작은 경우의 확률 합
+- **P_ge_T (목표 달성 확률)**: 지급액이 목표 이상일 확률(모드에 따라 제공)
+
+## 공유 링크
+
+상단 **공유 링크** 버튼을 누르면 현재 입력이 URL로 저장됩니다.  
+친구에게 링크만 보내면 같은 입력 상태로 바로 열립니다.
+
+## 내장 백엔드 vs 외부 백엔드
+
+- 기본값: **내장 백엔드**(`/api/optimize`)로 바로 계산
+- 외부 서버를 쓰려면 `.env.local`에 아래를 추가하면 됩니다.
+  ```
+  BACKEND_BASE_URL=http://localhost:8000
+  ```
+  이 경우 프론트는 `${BACKEND_BASE_URL}/api/optimize`로 프록시합니다.
+
+## API 계약 (프론트 → 백엔드)
+
+### 요청
 ```json
 {
   "budget": 1000,
   "candidates": [
-    { "name": "Candidate A", "p": 0.5, "m": "1.8" }
+    { "name": "캐릭터 A", "p": 0.5, "m": "1.8" }
   ],
   "rounding": "floor",
   "mode": "all_weather_maximin",
@@ -36,40 +68,32 @@ Modern Next.js + TypeScript frontend for the voting allocation optimizer. The UI
 }
 ```
 
-### Response JSON
+### 응답
 ```json
 {
   "status": "ok",
-  "allocation": [{ "name": "Candidate A", "s": 600 }],
-  "payoutByOutcome": [{ "name": "Candidate A", "payout": 1080 }],
+  "allocation": [{ "name": "캐릭터 A", "s": 600 }],
+  "payoutByOutcome": [{ "name": "캐릭터 A", "payout": 1080 }],
   "metrics": { "G": 900, "EV": 1042.3, "EP": 42.3, "P_loss": 0.12 },
-  "notes": ["Optional backend notes..."]
+  "notes": ["선택적으로 제공되는 메모"]
 }
 ```
 
-Status values: `ok`, `infeasible`, `error`.
+## 모드 목록
 
-## Modes (Enum)
+- `all_weather_maximin`: 최악 시 지급(G) 최대화
+- `hedge_breakeven_then_ev`: 손익분기 확보 후 EV 최대화
+- `beast_ev_under_maxloss`: 최악 손실 비율 제한 + EV 최대화
+- `ev_under_lossprob_cap`: 손실 확률 제한 + EV 최대화
+- `maximize_prob_ge_target`: 목표 지급액 이상 확률 최대화
+- `sparse_k_focus`: 최대 K명에만 배분
 
-- `all_weather_maximin`
-- `hedge_breakeven_then_ev`
-- `beast_ev_under_maxloss` (`params.maxLossPct` in range `0..1`)
-- `ev_under_lossprob_cap` (`params.lossProbCap` in range `0..1`)
-- `maximize_prob_ge_target` (`params.targetT` integer)
-- `sparse_k_focus` (`params.kSparse` integer)
+## 친구에게 링크로 바로 공유하는 방법
 
-## Input Rules
+1. GitHub에 레포를 올립니다.
+2. Vercel에서 프로젝트 생성 → 레포 연결 → Deploy
+3. 나온 URL을 친구에게 보내기
 
-- **Budget**: integer > 0.
-- **Probability**: enter percentages (e.g., `50` for 50%). The UI shows total sum and can auto-normalize.
-- **Multiplier**: positive decimal. Sent as a string to preserve exact input for backend rational parsing.
-- **Rounding**: always `"floor"` (fixed).
-- If probabilities do not sum to 100%, the backend will use them as-is and may return a warning note.
+## 참고
 
-## Share Links
-
-Use **Share Link** to encode the current inputs into the query string so teammates can open the same state.
-
-## Backend Prompt
-
-See `BACKEND_PROMPT.md` for the backend agent instructions.
+- 백엔드 전용 지시문은 `BACKEND_PROMPT.md`에 정리되어 있습니다.

@@ -13,12 +13,18 @@ export function AllocationList({ result, candidates }: AllocationListProps) {
         (result.payoutByOutcome ?? []).map((item) => [item.name, item.payout])
     );
     const candidateMap = new Map(candidates.map((candidate) => [candidate.name, candidate]));
-    const sorted = [...allocation].sort((a, b) => b.s - a.s);
+    const allocationMap = new Map(allocation.map((item) => [item.name, item]));
+    const ordered = [
+        ...candidates
+            .map((candidate) => allocationMap.get(candidate.name))
+            .filter((item): item is { name: string; s: number } => Boolean(item)),
+        ...allocation.filter((item) => !candidateMap.has(item.name)),
+    ];
 
-    if (sorted.length === 0) {
+    if (ordered.length === 0) {
         return (
             <div className="rounded-md border bg-card p-6 text-sm text-muted-foreground">
-                No allocation returned from the optimizer.
+                최적화 결과 배분이 없습니다.
             </div>
         );
     }
@@ -26,19 +32,19 @@ export function AllocationList({ result, candidates }: AllocationListProps) {
     return (
         <div className="rounded-md border bg-card">
             <div className="p-4 border-b">
-                <h3 className="font-semibold">Recommended Allocation Strategy</h3>
+                <h3 className="font-semibold">추천 배분안</h3>
             </div>
             <Table>
                 <TableHeader>
                     <TableRow>
-                        <TableHead>Candidate</TableHead>
-                        <TableHead className="text-right">Votes (s)</TableHead>
-                        <TableHead className="text-right">Multiplier</TableHead>
-                        <TableHead className="text-right">If Wins (Payout)</TableHead>
+                        <TableHead>캐릭터</TableHead>
+                        <TableHead className="text-right">투표 배분(s)</TableHead>
+                        <TableHead className="text-right">배당 배율</TableHead>
+                        <TableHead className="text-right">우승 시 지급</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {sorted.map((item) => {
+                    {ordered.map((item) => {
                         const candidate = candidateMap.get(item.name);
                         const payout = payoutMap.get(item.name);
                         const isZero = item.s === 0;
@@ -49,7 +55,7 @@ export function AllocationList({ result, candidates }: AllocationListProps) {
                             <TableRow key={item.name} className={isZero ? "opacity-50" : ""}>
                                 <TableCell className="font-medium">
                                     {item.name}
-                                    {isZero && <Badge variant="secondary" className="ml-2 text-[10px] h-4">Skip</Badge>}
+                                    {isZero && <Badge variant="secondary" className="ml-2 text-[10px] h-4">미배분</Badge>}
                                 </TableCell>
                                 <TableCell className="text-right font-mono font-bold text-primary">
                                     {item.s}

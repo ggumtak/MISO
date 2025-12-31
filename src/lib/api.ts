@@ -21,7 +21,7 @@ export async function optimizeDistribution(
         return (
             parsed ?? {
                 status: "error",
-                notes: ["Backend error or malformed response."],
+                notes: ["백엔드 오류 또는 응답 형식이 올바르지 않습니다."],
             }
         );
     }
@@ -29,7 +29,7 @@ export async function optimizeDistribution(
     return (
         parsed ?? {
             status: "error",
-            notes: ["Invalid JSON response from backend."],
+            notes: ["백엔드 JSON 응답이 올바르지 않습니다."],
         }
     );
 }
