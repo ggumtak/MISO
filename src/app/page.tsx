@@ -327,10 +327,10 @@ export default function Home() {
                 if (bestOk) {
                     setNotice({
                         type: "error",
-                        title: "모든 전략에서 기대치가 손해입니다.",
+                        title: "모든 모드에서 기대치가 본전 아래입니다.",
                         notes: [
-                            "어떤 전략으로도 EV가 총 투표권(B) 이상이 되지 않습니다.",
-                            "확률/배당/투표권 값을 조정해 주세요.",
+                            "현재 입력 기준으로는 어떤 모드도 기대치가 본전(B) 이상이 나오지 않습니다.",
+                            "다른 모드를 눌러 비교해 보세요.",
                         ],
                     });
                     setResult(null);
@@ -373,21 +373,21 @@ export default function Home() {
                 const nextEV = getValidEV(selectedResponse);
                 const reason =
                     initialStatus === "infeasible"
-                        ? "선택한 전략은 현재 제약에서 불가능했습니다."
+                        ? "선택한 모드는 현재 조건에서 계산이 불가능했습니다."
                         : initialStatus === "error"
-                            ? "선택한 전략 계산 중 오류가 발생했습니다."
+                            ? "선택한 모드 계산 중 오류가 발생했습니다."
                             : initialEV !== null
-                                ? `선택한 전략 EV ${initialEV.toFixed(1)} < B ${budgetValue}`
-                                : "선택한 전략의 기대치를 확인할 수 없습니다.";
+                                ? `선택한 모드 기대치가 본전(B)보다 낮았습니다. (${initialEV.toFixed(1)} < B ${budgetValue})`
+                                : "선택한 모드의 기대치를 확인할 수 없습니다.";
 
                 setMode(selectedMode);
                 setNotice({
                     type: "info",
-                    title: "기대치가 손익분기(B)보다 낮아 다른 전략으로 전환했습니다.",
+                    title: "기대치가 본전(B)보다 낮아 다른 모드로 전환했습니다.",
                     notes: [
-                        `선택한 전략: ${originalTitle}`,
+                        `선택한 모드: ${originalTitle}`,
                         reason,
-                        `전환 전략: ${nextTitle}${nextEV !== null ? ` (EV ${nextEV.toFixed(1)})` : ""}`,
+                        `전환 모드: ${nextTitle}${nextEV !== null ? ` (기대치 ${nextEV.toFixed(1)})` : ""}`,
                     ],
                 });
             } else {
@@ -515,7 +515,7 @@ export default function Home() {
                         </p>
                         <ul className="list-disc pl-5 space-y-1">
                             <li>각 캐릭터의 우승 확률(%)과 배당 배율(M)을 입력합니다.</li>
-                            <li>전략을 고르면 목표(G, EV, 손실 확률 등)에 맞춰 배분안을 계산합니다.</li>
+                            <li>모드를 고르면 원하는 목표에 맞춰 배분안을 계산합니다.</li>
                             <li>결과에서 추천 배분, 우승 시 지급액, 위험 지표를 확인하세요.</li>
                         </ul>
                     </CardContent>
@@ -535,7 +535,7 @@ export default function Home() {
 
                     <div className="space-y-6 animate-fade-up" style={{ animationDelay: "120ms" }}>
                         <div className="flex items-center justify-between">
-                            <h3 className="text-lg font-semibold">전략</h3>
+                            <h3 className="text-lg font-semibold">모드 선택</h3>
                             <Badge variant="outline" className="text-muted-foreground">
                                 내림(floor) 고정
                             </Badge>
