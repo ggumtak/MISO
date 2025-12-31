@@ -69,11 +69,11 @@ const DEFAULT_CANDIDATES: Candidate[] = [
 ];
 
 const SAMPLE_CANDIDATES: Candidate[] = [
-    createCandidate("t1", "인기 1위", "90", "1.2"),
-    createCandidate("t2", "다크호스", "1", "50"),
-    createCandidate("t3", "중위권", "4", "20"),
-    createCandidate("t4", "대반전", "1", "50"),
-    createCandidate("t5", "복병", "4", "20"),
+    createCandidate("t1", "캐릭터 A", "90", "1.2"),
+    createCandidate("t2", "캐릭터 B", "1", "50"),
+    createCandidate("t3", "캐릭터 C", "4", "20"),
+    createCandidate("t4", "캐릭터 D", "1", "50"),
+    createCandidate("t5", "캐릭터 E", "4", "20"),
 ];
 
 const getBudgetError = (input: string) => {
