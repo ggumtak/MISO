@@ -282,10 +282,10 @@ export default function Home() {
             let selectedMode: OptimizationMode | null = null;
             let bestOk:
                 | {
-                      mode: OptimizationMode;
-                      response: OptimizationResult;
-                      ev: number;
-                  }
+                    mode: OptimizationMode;
+                    response: OptimizationResult;
+                    ev: number;
+                }
                 | null = null;
             let lastError: OptimizationResult | null = null;
             let lastInfeasible: OptimizationResult | null = null;
@@ -511,13 +511,22 @@ export default function Home() {
                 <Card className="bg-card/70 border-border/70">
                     <CardContent className="pt-6 text-sm text-muted-foreground space-y-3">
                         <p className="font-semibold text-foreground">
-                            대회 안내: 우승 캐릭터에게 투표권을 효율적으로 배분하는 계산기
+                            투표권 배분 계산기
                         </p>
-                        <ul className="list-disc pl-5 space-y-1">
-                            <li>각 캐릭터의 우승 확률(%)과 배당 배율(M)을 입력합니다.</li>
-                            <li>모드를 고르면 원하는 목표에 맞춰 배분안을 계산합니다.</li>
-                            <li>결과에서 추천 배분, 우승 시 지급액, 위험 지표를 확인하세요.</li>
-                        </ul>
+                        <p className="text-xs">
+                            각 캐릭터의 우승 확률과 배당률을 입력한 후, 원하는 전략을 선택하세요.
+                        </p>
+                        <div className="grid grid-cols-3 gap-4 pt-1 text-xs">
+                            <div>
+                                <p className="font-medium text-foreground">1. 투표권 입력</p>
+                            </div>
+                            <div>
+                                <p className="font-medium text-foreground">2. 캐릭터 정보</p>
+                            </div>
+                            <div>
+                                <p className="font-medium text-foreground">3. 전략 선택</p>
+                            </div>
+                        </div>
                     </CardContent>
                 </Card>
                 <div className="grid grid-cols-1 lg:grid-cols-[1.35fr_1fr] gap-8">
@@ -535,17 +544,22 @@ export default function Home() {
 
                     <div className="space-y-6 animate-fade-up" style={{ animationDelay: "120ms" }}>
                         <div className="flex items-center justify-between">
-                            <h3 className="text-lg font-semibold">모드 선택</h3>
+                            <h3 className="text-lg font-semibold">전략 선택</h3>
                             <Badge variant="outline" className="text-muted-foreground">
-                                내림(floor) 고정
+                                소수점 버림
                             </Badge>
                         </div>
+                        <p className="text-xs text-muted-foreground -mt-2">
+                            배분 방식을 선택하세요.
+                        </p>
                         <ModeSelector
                             selectedMode={mode}
                             onSelectMode={setMode}
                             modeParams={modeParams}
                             onUpdateParams={setModeParams}
                             candidateCount={candidates.length}
+                            budget={budgetValue ?? undefined}
+                            candidates={candidates.map((c) => ({ p: c.p, m: c.m }))}
                         />
 
                         <Button
@@ -583,11 +597,11 @@ export default function Home() {
                                 className={cn(
                                     "rounded-lg border p-4 text-sm flex flex-col gap-2",
                                     notice.type === "error" &&
-                                        "border-destructive/30 bg-destructive/10 text-destructive",
+                                    "border-destructive/30 bg-destructive/10 text-destructive",
                                     notice.type === "warning" &&
-                                        "border-amber-200 bg-amber-50 text-amber-900",
+                                    "border-amber-200 bg-amber-50 text-amber-900",
                                     notice.type === "info" &&
-                                        "border-sky-200 bg-sky-50 text-sky-900"
+                                    "border-sky-200 bg-sky-50 text-sky-900"
                                 )}
                             >
                                 <div className="flex items-start gap-2">

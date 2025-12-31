@@ -5,8 +5,10 @@ export interface StrategyDef {
     id: OptimizationMode;
     title: string;
     description: string;
+    tip: string; // 초보자를 위한 친절한 팁
     icon: LucideIcon;
     color: string;
+    recommendPriority: number; // 추천 우선순위 (낮을수록 먼저 추천)
     params: {
         key: string;
         label: string;
@@ -23,30 +25,36 @@ export interface StrategyDef {
 export const STRATEGIES: StrategyDef[] = [
     {
         id: "all_weather_maximin",
-        title: "안전 우선",
-        description: "어떤 결과에도 최소 지급을 최대한 지키는 배분이에요.",
+        title: "안전 배분",
+        description: "어떤 결과가 나와도 최소 수익을 보장하는 배분",
+        tip: "처음 사용한다면 이 전략 추천. 손해 없이 안정적",
         icon: Shield,
         color: "text-emerald-400",
+        recommendPriority: 1,
         params: [],
     },
     {
         id: "hedge_breakeven_then_ev",
-        title: "본전 지키기",
-        description: "먼저 본전(B) 이상을 노리고, 가능하면 더 이득이 되게 골라요.",
+        title: "본전 확보",
+        description: "투자금만큼은 돌려받고, 가능하면 수익도 챙김",
+        tip: "잃기 싫을 때 선택. 본전 보장 후 추가 수익 추구",
         icon: TrendingUp,
         color: "text-blue-400",
+        recommendPriority: 2,
         params: [],
     },
     {
         id: "beast_ev_under_maxloss",
-        title: "모험 모드",
-        description: "최악 손해 한도를 지키면서 평균 이득을 더 노려요.",
+        title: "고수익 추구",
+        description: "손실 한도 내에서 평균 수익 최대화",
+        tip: "일부 손실 감수 가능할 때. 수익 기대값 높임",
         icon: Skull,
         color: "text-red-500",
+        recommendPriority: 4,
         params: [
             {
                 key: "maxLossPct",
-                label: "최악 손해 한도",
+                label: "최대 손실률",
                 type: "slider",
                 min: 0,
                 max: 100,
@@ -59,14 +67,16 @@ export const STRATEGIES: StrategyDef[] = [
     },
     {
         id: "ev_under_lossprob_cap",
-        title: "손해 확률 낮추기",
-        description: "손해 날 확률을 제한하고 그 안에서 이득을 찾습니다.",
+        title: "손실 확률 제한",
+        description: "손해 볼 확률을 제한하고 그 안에서 수익 최대화",
+        tip: "손실 확률 상한선 설정 후 최적 배분 계산",
         icon: Crosshair,
         color: "text-orange-400",
+        recommendPriority: 3,
         params: [
             {
                 key: "lossProbCap",
-                label: "손해 확률 한도",
+                label: "손실 확률 한도",
                 type: "slider",
                 min: 0,
                 max: 50,
@@ -79,14 +89,16 @@ export const STRATEGIES: StrategyDef[] = [
     },
     {
         id: "maximize_prob_ge_target",
-        title: "목표 점수 맞추기",
-        description: "목표 점수 이상을 받을 확률을 최대화합니다.",
+        title: "목표 금액 달성",
+        description: "설정한 금액 이상 받을 확률을 최대화",
+        tip: "특정 목표 금액이 있을 때 사용",
         icon: Target,
         color: "text-cyan-400",
+        recommendPriority: 5,
         params: [
             {
                 key: "targetT",
-                label: "목표 점수",
+                label: "목표 금액",
                 type: "number",
                 default: 500,
                 suffix: "점",
@@ -97,19 +109,21 @@ export const STRATEGIES: StrategyDef[] = [
     {
         id: "sparse_k_focus",
         title: "소수 집중",
-        description: "최대 K명에게만 몰아주는 단순 배분이에요.",
+        description: "K명에게만 집중 배분하는 단순 전략",
+        tip: "특정 캐릭터에 몰빵하고 싶을 때",
         icon: Zap,
         color: "text-yellow-400",
+        recommendPriority: 6,
         params: [
             {
                 key: "kSparse",
-                label: "몰아줄 캐릭터 수(K)",
+                label: "집중할 캐릭터 수",
                 type: "slider",
                 min: 1,
-                max: 5, // 후보 수에 따라 바꿔야 하지만 현재는 5로 고정합니다.
+                max: 5,
                 step: 1,
                 default: 2,
-                suffix: "",
+                suffix: "명",
                 unit: "integer",
             },
         ],
