@@ -25,18 +25,19 @@ interface CandidateTableProps {
 }
 
 // 기본 확률 프리셋 값
-const DEFAULT_PROBABILITY_PRESETS = [1, 2, 3, 4, 5, 10, 50, 70, 80, 90];
+const DEFAULT_PROBABILITY_PRESETS = [1, 4, 5, 10, 70, 80, 90];
 
 // 기본 배당 프리셋 값
-const DEFAULT_MULTIPLIER_PRESETS = [1.3, 1.5, 9, 17, 20, 50];
+const DEFAULT_MULTIPLIER_PRESETS = [1.2, 1.3, 1.5, 9, 17, 20, 50];
 
 const DEFAULT_PAIR_PRESETS: Record<string, number> = {
-    "90": 1.3,
+    "90": 1.2,
+    "80": 1.3,
     "70": 1.5,
     "10": 9,
     "5": 17,
-    "1": 50,
     "4": 20,
+    "1": 50,
 };
 
 // localStorage 키
@@ -395,7 +396,7 @@ export function CandidateTable({
         <div className="space-y-4">
             <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold flex items-center gap-2">
-                    캐릭터 목록
+                    베팅 대상
                     {!isProbabilityValid && (
                         <Badge variant="destructive" className="ml-2 animate-pulse">
                             확률 합계: {totalDisplay}
@@ -417,7 +418,7 @@ export function CandidateTable({
                             className="h-8"
                         >
                             <Wand2 className="w-3 h-3 mr-2" />
-                            자동 정규화
+                            확률 자동 맞추기
                         </Button>
                     )}
                     <Button variant="outline" size="sm" onClick={addCandidate} className="h-8">
@@ -431,9 +432,9 @@ export function CandidateTable({
                     <TableHeader>
                         <TableRow>
                             <TableHead className="w-[40px]"></TableHead>
-                            <TableHead className="w-[35%]">캐릭터</TableHead>
-                            <TableHead className="w-[25%]">우승 확률(%)</TableHead>
-                            <TableHead className="w-[25%]">배당 배율(M)</TableHead>
+                            <TableHead className="w-[35%]">이름</TableHead>
+                            <TableHead className="w-[25%]">당첨 확률(%)</TableHead>
+                            <TableHead className="w-[25%]">당첨 배율(x)</TableHead>
                             <TableHead className="w-[10%]"></TableHead>
                         </TableRow>
                     </TableHeader>
@@ -692,13 +693,13 @@ export function CandidateTable({
             {!isProbabilityValid && (
                 <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
                     <AlertTriangle className="w-4 h-4" />
-                    <span>확률 합계는 100%가 되어야 합니다. 현재: {totalDisplay}</span>
+                    <span>확률을 모두 더하면 100%가 되어야 해요. 지금은: {totalDisplay}</span>
                 </div>
             )}
             {hasFieldErrors && (
                 <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
                     <AlertTriangle className="w-4 h-4" />
-                    <span>강조된 입력을 수정해 주세요.</span>
+                    <span>빨간색으로 표시된 부분을 수정해 주세요</span>
                 </div>
             )}
         </div>

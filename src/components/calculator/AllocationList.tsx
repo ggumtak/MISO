@@ -24,7 +24,7 @@ export function AllocationList({ result, candidates }: AllocationListProps) {
     if (ordered.length === 0) {
         return (
             <div className="rounded-md border bg-card p-6 text-sm text-muted-foreground">
-                최적화 결과 배분이 없습니다.
+                아직 배분 결과가 없어요.
             </div>
         );
     }
@@ -32,15 +32,15 @@ export function AllocationList({ result, candidates }: AllocationListProps) {
     return (
         <div className="rounded-md border bg-card">
             <div className="p-4 border-b">
-                <h3 className="font-semibold">추천 배분안</h3>
+                <h3 className="font-semibold">이렇게 베팅하세요!</h3>
             </div>
             <Table>
                 <TableHeader>
                     <TableRow>
-                        <TableHead>캐릭터</TableHead>
-                        <TableHead className="text-right">투표 배분(s)</TableHead>
-                        <TableHead className="text-right">배당 배율</TableHead>
-                        <TableHead className="text-right">우승 시 지급</TableHead>
+                        <TableHead>이름</TableHead>
+                        <TableHead className="text-right">베팅량</TableHead>
+                        <TableHead className="text-right">당첨 배율</TableHead>
+                        <TableHead className="text-right">당첨 시 받는 금액</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -55,7 +55,7 @@ export function AllocationList({ result, candidates }: AllocationListProps) {
                             <TableRow key={item.name} className={isZero ? "opacity-50" : ""}>
                                 <TableCell className="font-medium">
                                     {item.name}
-                                    {isZero && <Badge variant="secondary" className="ml-2 text-[10px] h-4">미배분</Badge>}
+                                    {isZero && <Badge variant="secondary" className="ml-2 text-[10px] h-4">베팅 안 함</Badge>}
                                 </TableCell>
                                 <TableCell className="text-right font-mono font-bold text-primary">
                                     {item.s}

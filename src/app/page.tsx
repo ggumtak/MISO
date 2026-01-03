@@ -139,7 +139,7 @@ export default function Home() {
     const [candidates, setCandidates] = useState<Candidate[]>(
         () => DEFAULT_CANDIDATES.map((candidate) => ({ ...candidate }))
     );
-    const [mode, setMode] = useState<OptimizationMode>("max_prob_focus");
+    const [mode, setMode] = useState<OptimizationMode>("balanced_profit");
     const [modeParams, setModeParams] = useState<Record<string, number>>({});
 
     const [result, setResult] = useState<OptimizationResult | null>(null);
@@ -634,7 +634,7 @@ export default function Home() {
     const fillTemplate = () => {
         setBudgetInput("399");
         setCandidates(SAMPLE_CANDIDATES.map((candidate) => ({ ...candidate })));
-        setMode("max_prob_focus");
+        setMode("balanced_profit");
         setModeParams({});
         setResult(null);
         setNotice(null);
@@ -644,7 +644,7 @@ export default function Home() {
     const handleReset = () => {
         setBudgetInput("1000");
         setCandidates(DEFAULT_CANDIDATES.map((c) => ({ ...c })));
-        setMode("max_prob_focus");
+        setMode("balanced_profit");
         setModeParams({});
         setResult(null);
         setNotice(null);

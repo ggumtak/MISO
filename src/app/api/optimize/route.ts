@@ -6,6 +6,7 @@ const EPS = 1e-9;
 const NEG = Number.NEGATIVE_INFINITY;
 const POS = Number.POSITIVE_INFINITY;
 const MIN_ALLOCATION = 10;
+const MAX_PER_CANDIDATE = 1000; // 한 선수당 최대 투표 수
 
 type CandidateInput = { name: string; p: number; m: string | number };
 type OptimizeRequest = {
@@ -65,7 +66,7 @@ function buildPayoutTable(numer: bigint, denom: bigint, budget: number) {
 }
 
 function isAllocationAllowed(value: number) {
-    return value === 0 || value >= MIN_ALLOCATION;
+    return value === 0 || (value >= MIN_ALLOCATION && value <= MAX_PER_CANDIDATE);
 }
 
 function maskProbabilities(probabilities: number[]) {
@@ -721,6 +722,75 @@ export async function POST(request: Request) {
         }
         case "maximize_ev": {
             allocation = optimizeEVWithMinPayout(payouts, probabilities, budget, null);
+            break;
+        }
+        case "balanced_profit": {
+            // 기댓값이 양수인 후보들에게 균등 분배 (기댓값 = p * m > 1)
+            const positiveEVCandidates: number[] = [];
+            for (let i = 0; i < candidateData.length; i++) {
+                const ev = candidateData[i].p * Number(candidateData[i].numer) / Number(candidateData[i].denom);
+                if (ev > 1) {
+                    positiveEVCandidates.push(i);
+                }
+            }
+
+            if (positiveEVCandidates.length === 0) {
+                // 기댓값이 양수인 후보가 없으면 가장 높은 기댓값에 올인
+                allocation = optimizeEVWithMinPayout(payouts, probabilities, budget, null);
+                notes.push("기댓값이 1을 넘는 선수가 없어서 평균 수익 최대 모드로 계산했어요.");
+            } else {
+                // 기댓값이 양수인 후보들에게 균등 분배 (1000개 제한 고려)
+                allocation = new Array(candidateData.length).fill(0);
+                let remaining = budget;
+                const perCandidate = Math.min(MAX_PER_CANDIDATE, Math.floor(budget / positiveEVCandidates.length));
+
+                for (const idx of positiveEVCandidates) {
+                    const amount = Math.min(perCandidate, remaining);
+                    if (amount >= MIN_ALLOCATION) {
+                        allocation[idx] = amount;
+                        remaining -= amount;
+                    }
+                }
+
+                // 남은 포인트를 기댓값 순으로 분배
+                if (remaining > 0) {
+                    const sorted = positiveEVCandidates
+                        .map(i => ({ i, ev: candidateData[i].p * Number(candidateData[i].numer) / Number(candidateData[i].denom) }))
+                        .sort((a, b) => b.ev - a.ev);
+
+                    for (const { i } of sorted) {
+                        const canAdd = Math.min(remaining, MAX_PER_CANDIDATE - allocation[i]);
+                        if (canAdd > 0) {
+                            allocation[i] += canAdd;
+                            remaining -= canAdd;
+                        }
+                        if (remaining <= 0) break;
+                    }
+                }
+            }
+            break;
+        }
+        case "loss_limit": {
+            // 손실 한도 설정 모드: 최대 손실률 내에서 EV 최대화
+            let maxLossPercent = Number(params.maxLossPercent);
+            if (!Number.isFinite(maxLossPercent)) {
+                maxLossPercent = 30; // 기본값 30%
+            }
+            if (maxLossPercent > 1 && maxLossPercent <= 100) {
+                maxLossPercent /= 100;
+            }
+            if (maxLossPercent < 0 || maxLossPercent > 1) {
+                return jsonError(["손실 한도는 0~100% 범위여야 해요."]);
+            }
+
+            // 최악의 경우에도 (1 - maxLossPercent) * budget 이상 받도록
+            const minPayout = Math.floor(budget * (1 - maxLossPercent));
+            allocation = optimizeEVWithMinPayout(payouts, probabilities, budget, minPayout);
+
+            if (!allocation) {
+                notes.push("설정한 손실 한도 내에서는 해가 없어서, 평균 수익 최대 모드로 계산했어요.");
+                allocation = optimizeEVWithMinPayout(payouts, probabilities, budget, null);
+            }
             break;
         }
         case "hedge_breakeven_then_ev": {

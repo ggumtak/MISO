@@ -27,7 +27,7 @@ export function MetricsGrid({ result, budget }: MetricsGridProps) {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Card className="bg-card/50 border-primary/20">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">최악 시 지급(G)</CardTitle>
+                    <CardTitle className="text-sm font-medium text-muted-foreground">최소 보장</CardTitle>
                     <ShieldAlert className="h-4 w-4 text-primary" />
                 </CardHeader>
                 <CardContent>
@@ -35,54 +35,52 @@ export function MetricsGrid({ result, budget }: MetricsGridProps) {
                         {Number.isFinite(G) ? Math.floor(G!) : "--"}
                     </div>
                     <p
-                        className={`text-xs ${
-                            Number.isFinite(profitWorst) && profitWorst! >= 0
+                        className={`text-xs ${Number.isFinite(profitWorst) && profitWorst! >= 0
                                 ? "text-emerald-500"
                                 : "text-destructive"
-                        }`}
+                            }`}
                     >
                         {Number.isFinite(profitWorst)
-                            ? `${profitWorst! >= 0 ? "+" : ""}${profitWorst!.toFixed(0)} (B 대비)`
-                            : "결과 대기"}
+                            ? `${profitWorst! >= 0 ? "+" : ""}${profitWorst!.toFixed(0)} (내 포인트 대비)`
+                            : "계산 중..."}
                     </p>
                 </CardContent>
             </Card>
 
             <Card className="bg-card/50 border-primary/20">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">기댓값(EV)</CardTitle>
+                    <CardTitle className="text-sm font-medium text-muted-foreground">평균 예상</CardTitle>
                     <TrendingUp className="h-4 w-4 text-blue-400" />
                 </CardHeader>
                 <CardContent>
                     <div className="text-2xl font-bold font-mono">{formatNumber(EV, 1)}</div>
                     <p
-                        className={`text-xs ${
-                            Number.isFinite(profitEV) && profitEV! >= 0
+                        className={`text-xs ${Number.isFinite(profitEV) && profitEV! >= 0
                                 ? "text-emerald-500"
                                 : "text-destructive"
-                        }`}
+                            }`}
                     >
                         {Number.isFinite(profitEV)
-                            ? `${profitEV! >= 0 ? "+" : ""}${profitEV!.toFixed(1)} (B 대비)`
-                            : "결과 대기"}
+                            ? `${profitEV! >= 0 ? "+" : ""}${profitEV!.toFixed(1)} (내 포인트 대비)`
+                            : "계산 중..."}
                     </p>
                 </CardContent>
             </Card>
 
             <Card className="bg-card/50 border-primary/20">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">기대 수익(EP)</CardTitle>
+                    <CardTitle className="text-sm font-medium text-muted-foreground">예상 이익</CardTitle>
                     <BadgeDollarSign className="h-4 w-4 text-emerald-500" />
                 </CardHeader>
                 <CardContent>
                     <div className="text-2xl font-bold font-mono">{formatNumber(EP, 1)}</div>
-                    <p className="text-xs text-muted-foreground">EV - B</p>
+                    <p className="text-xs text-muted-foreground">평균 예상 - 내 포인트</p>
                 </CardContent>
             </Card>
 
             <Card className="bg-card/50 border-primary/20">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">손실 확률</CardTitle>
+                    <CardTitle className="text-sm font-medium text-muted-foreground">손해 볼 확률</CardTitle>
                     <Activity className="h-4 w-4 text-orange-400" />
                 </CardHeader>
                 <CardContent>
@@ -90,7 +88,7 @@ export function MetricsGrid({ result, budget }: MetricsGridProps) {
                         {Number.isFinite(P_loss) ? `${(P_loss! * 100).toFixed(1)}%` : "--"}
                     </div>
                     <p className="text-xs text-muted-foreground">
-                        {budget} 미만 확률
+                        본전 못 찾을 확률
                     </p>
                 </CardContent>
             </Card>
@@ -104,7 +102,7 @@ export function MetricsGrid({ result, budget }: MetricsGridProps) {
                     <CardContent>
                         <div className="text-2xl font-bold font-mono">{(P_ge_T * 100).toFixed(1)}%</div>
                         <p className="text-xs text-muted-foreground">
-                            목표 지급액 이상 확률
+                            목표 금액 이상 받을 확률
                         </p>
                     </CardContent>
                 </Card>

@@ -8,11 +8,9 @@ export interface Candidate {
 }
 
 export type OptimizationMode =
-    | "max_prob_focus"
-    | "all_weather_maximin"
+    | "balanced_profit"
     | "maximize_ev"
-    | "ev_with_shortfall_penalty"
-    | "maximize_prob_ge_target";
+    | "loss_limit";
 
 export interface OptimizationRequest {
     budget: number;
@@ -23,12 +21,12 @@ export interface OptimizationRequest {
 }
 
 export interface OptimizationMetrics {
-    G?: number;
-    EV?: number;
-    EP?: number;
-    P_loss?: number;
-    Var?: number;
-    P_ge_T?: number;
+    G?: number;        // 최소 보장 (최악의 경우)
+    EV?: number;       // 평균 예상 수익
+    EP?: number;       // 예상 이익 (EV - B)
+    P_loss?: number;   // 손해 볼 확률
+    Var?: number;      // 분산
+    P_ge_T?: number;   // 목표 달성 확률
     [key: string]: number | undefined;
 }
 

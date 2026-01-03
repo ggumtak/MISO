@@ -97,9 +97,9 @@ export function ModeSelector({
 
     const riskSummary =
         riskReason === "multipliers"
-            ? "배당률이 모두 1배 미만이라 어떤 배분을 해도 기대값이 줄어듭니다."
+            ? "모든 배율이 1배보다 낮아서, 어떻게 해도 손해예요."
             : riskReason === "expected"
-                ? "현재 입력 기준으로 최대 기대값이 본전(B) 아래입니다. 그래도 계산은 가능합니다."
+                ? "지금 설정으로는 평균적으로 본전을 찾기 어려워요. 그래도 계산은 할 수 있어요!"
                 : "";
 
     return (
@@ -164,10 +164,10 @@ export function ModeSelector({
                 <Card className="bg-muted/30 border-dashed">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-sm uppercase tracking-wider text-muted-foreground">
-                            {activeStrategy.title} 설정
+                            {activeStrategy.title} 세부 설정
                         </CardTitle>
                         <CardDescription className="text-xs">
-                            슬라이더를 움직여서 원하는 값을 설정하세요
+                            슬라이더를 움직여서 원하는 값으로 조절하세요
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="grid gap-6 pt-4">
@@ -220,11 +220,11 @@ export function ModeSelector({
 
             {riskReason && (
                 <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-                    <p className="font-semibold">손해 가능성이 큽니다.</p>
+                    <p className="font-semibold">손해 볼 가능성이 높아요!</p>
                     <p className="text-xs mt-1 text-amber-900/80">{riskSummary}</p>
                     {maxExpectedRatio !== null && (
                         <p className="text-xs mt-2 text-amber-900/70">
-                            최대 기대배율: {maxExpectedRatio.toFixed(2)}x
+                            최대 기대 수익률: {maxExpectedRatio.toFixed(2)}배
                         </p>
                     )}
                 </div>
