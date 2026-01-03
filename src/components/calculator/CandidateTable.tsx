@@ -8,12 +8,12 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Trash2, Plus, AlertTriangle, Wand2, GripVertical } from "lucide-react";
+import { Trash2, Plus, AlertTriangle, Wand2, GripVertical, X } from "lucide-react";
 import { Candidate } from "@/types/calculator";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { parseMultiplierInput, parseProbabilityInput } from "@/lib/inputs";
-import { useState, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 interface CandidateTableProps {
     candidates: Candidate[];
@@ -24,11 +24,15 @@ interface CandidateTableProps {
     onNormalize: () => void;
 }
 
-// 자주 사용되는 확률 프리셋 값
-const PROBABILITY_PRESETS = [1, 2, 3, 4, 5, 10, 50, 70, 80, 90];
+// 기본 확률 프리셋 값
+const DEFAULT_PROBABILITY_PRESETS = [1, 2, 3, 4, 5, 10, 50, 70, 80, 90];
 
-// 자주 사용되는 배당 프리셋 값
-const MULTIPLIER_PRESETS = [1.5, 9, 17, 20, 50];
+// 기본 배당 프리셋 값
+const DEFAULT_MULTIPLIER_PRESETS = [1.5, 9, 17, 20, 50];
+
+// localStorage 키
+const PROB_PRESETS_KEY = "terun-probability-presets";
+const MULT_PRESETS_KEY = "terun-multiplier-presets";
 
 export function CandidateTable({
     candidates,
@@ -42,6 +46,70 @@ export function CandidateTable({
     const [focusedMultiplierId, setFocusedMultiplierId] = useState<string | null>(null);
     const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
     const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+
+    // 커스텀 프리셋 상태
+    const [probPresets, setProbPresets] = useState<number[]>(DEFAULT_PROBABILITY_PRESETS);
+    const [multPresets, setMultPresets] = useState<number[]>(DEFAULT_MULTIPLIER_PRESETS);
+    const [showAddProbPreset, setShowAddProbPreset] = useState<string | null>(null);
+    const [showAddMultPreset, setShowAddMultPreset] = useState<string | null>(null);
+    const [newPresetValue, setNewPresetValue] = useState("");
+
+    // localStorage에서 프리셋 로드
+    useEffect(() => {
+        try {
+            const savedProb = localStorage.getItem(PROB_PRESETS_KEY);
+            const savedMult = localStorage.getItem(MULT_PRESETS_KEY);
+            if (savedProb) {
+                const parsed = JSON.parse(savedProb);
+                if (Array.isArray(parsed)) setProbPresets(parsed);
+            }
+            if (savedMult) {
+                const parsed = JSON.parse(savedMult);
+                if (Array.isArray(parsed)) setMultPresets(parsed);
+            }
+        } catch (e) {
+            console.warn("프리셋 로드 실패", e);
+        }
+    }, []);
+
+    // 프리셋 변경 시 localStorage에 저장
+    useEffect(() => {
+        localStorage.setItem(PROB_PRESETS_KEY, JSON.stringify(probPresets));
+    }, [probPresets]);
+
+    useEffect(() => {
+        localStorage.setItem(MULT_PRESETS_KEY, JSON.stringify(multPresets));
+    }, [multPresets]);
+
+    // 확률 프리셋 추가
+    const addProbPreset = useCallback((value: string) => {
+        const num = parseFloat(value);
+        if (!Number.isFinite(num) || num <= 0 || num > 100) return;
+        if (probPresets.includes(num)) return;
+        setProbPresets(prev => [...prev, num].sort((a, b) => a - b));
+        setShowAddProbPreset(null);
+        setNewPresetValue("");
+    }, [probPresets]);
+
+    // 확률 프리셋 삭제
+    const removeProbPreset = useCallback((value: number) => {
+        setProbPresets(prev => prev.filter(v => v !== value));
+    }, []);
+
+    // 배당 프리셋 추가
+    const addMultPreset = useCallback((value: string) => {
+        const num = parseFloat(value);
+        if (!Number.isFinite(num) || num <= 0) return;
+        if (multPresets.includes(num)) return;
+        setMultPresets(prev => [...prev, num].sort((a, b) => a - b));
+        setShowAddMultPreset(null);
+        setNewPresetValue("");
+    }, [multPresets]);
+
+    // 배당 프리셋 삭제
+    const removeMultPreset = useCallback((value: number) => {
+        setMultPresets(prev => prev.filter(v => v !== value));
+    }, []);
 
     const updateCandidate = (id: string, field: "name" | "pInput" | "mInput", value: string) => {
         onUpdate(
@@ -228,25 +296,83 @@ export function CandidateTable({
                                         {/* 확률 프리셋 버튼 - 포커스 시 표시 */}
                                         {focusedCandidateId === candidate.id && (
                                             <div className="flex gap-1 flex-wrap animate-in fade-in slide-in-from-top-1 duration-150">
-                                                {PROBABILITY_PRESETS.map((preset) => (
+                                                {probPresets.map((preset: number) => (
+                                                    <div key={preset} className="relative group">
+                                                        <button
+                                                            type="button"
+                                                            onMouseDown={(e) => {
+                                                                e.preventDefault();
+                                                                setProbabilityPreset(candidate.id, preset);
+                                                            }}
+                                                            className={cn(
+                                                                "px-1.5 py-0.5 text-[10px] font-medium rounded border transition-all",
+                                                                "hover:bg-primary hover:text-primary-foreground hover:border-primary",
+                                                                candidate.pInput === preset.toString()
+                                                                    ? "bg-primary text-primary-foreground border-primary"
+                                                                    : "bg-muted/50 text-muted-foreground border-border/50"
+                                                            )}
+                                                        >
+                                                            {preset}%
+                                                        </button>
+                                                        {/* 삭제 버튼 */}
+                                                        <button
+                                                            type="button"
+                                                            onMouseDown={(e) => {
+                                                                e.preventDefault();
+                                                                e.stopPropagation();
+                                                                removeProbPreset(preset);
+                                                            }}
+                                                            className="absolute -top-1 -right-1 w-3 h-3 bg-destructive text-white rounded-full text-[8px] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                                                        >
+                                                            <X className="w-2 h-2" />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                                {/* 프리셋 추가 버튼 */}
+                                                {showAddProbPreset === candidate.id ? (
+                                                    <div className="flex items-center gap-1">
+                                                        <input
+                                                            type="number"
+                                                            value={newPresetValue}
+                                                            onChange={(e) => setNewPresetValue(e.target.value)}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === "Enter") {
+                                                                    e.preventDefault();
+                                                                    addProbPreset(newPresetValue);
+                                                                }
+                                                                if (e.key === "Escape") {
+                                                                    setShowAddProbPreset(null);
+                                                                    setNewPresetValue("");
+                                                                }
+                                                            }}
+                                                            placeholder="%"
+                                                            className="w-12 h-5 text-[10px] px-1 border rounded"
+                                                            autoFocus
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            onMouseDown={(e) => {
+                                                                e.preventDefault();
+                                                                addProbPreset(newPresetValue);
+                                                            }}
+                                                            className="text-[10px] text-primary hover:underline"
+                                                        >
+                                                            추가
+                                                        </button>
+                                                    </div>
+                                                ) : (
                                                     <button
-                                                        key={preset}
                                                         type="button"
                                                         onMouseDown={(e) => {
                                                             e.preventDefault();
-                                                            setProbabilityPreset(candidate.id, preset);
+                                                            setShowAddProbPreset(candidate.id);
+                                                            setNewPresetValue("");
                                                         }}
-                                                        className={cn(
-                                                            "px-1.5 py-0.5 text-[10px] font-medium rounded border transition-all",
-                                                            "hover:bg-primary hover:text-primary-foreground hover:border-primary",
-                                                            candidate.pInput === preset.toString()
-                                                                ? "bg-primary text-primary-foreground border-primary"
-                                                                : "bg-muted/50 text-muted-foreground border-border/50"
-                                                        )}
+                                                        className="px-1.5 py-0.5 text-[10px] font-medium rounded border border-dashed border-primary/50 text-primary hover:bg-primary/10 transition-all"
                                                     >
-                                                        {preset}%
+                                                        <Plus className="w-3 h-3" />
                                                     </button>
-                                                ))}
+                                                )}
                                             </div>
                                         )}
                                     </div>
@@ -271,25 +397,83 @@ export function CandidateTable({
                                         {/* 배당 프리셋 버튼 - 포커스 시 표시 */}
                                         {focusedMultiplierId === candidate.id && (
                                             <div className="flex gap-1 flex-wrap animate-in fade-in slide-in-from-top-1 duration-150">
-                                                {MULTIPLIER_PRESETS.map((preset) => (
+                                                {multPresets.map((preset: number) => (
+                                                    <div key={preset} className="relative group">
+                                                        <button
+                                                            type="button"
+                                                            onMouseDown={(e) => {
+                                                                e.preventDefault();
+                                                                setMultiplierPreset(candidate.id, preset);
+                                                            }}
+                                                            className={cn(
+                                                                "px-1.5 py-0.5 text-[10px] font-medium rounded border transition-all",
+                                                                "hover:bg-teal-600 hover:text-white hover:border-teal-600",
+                                                                candidate.mInput === preset.toString()
+                                                                    ? "bg-teal-600 text-white border-teal-600"
+                                                                    : "bg-muted/50 text-muted-foreground border-border/50"
+                                                            )}
+                                                        >
+                                                            {preset}x
+                                                        </button>
+                                                        {/* 삭제 버튼 */}
+                                                        <button
+                                                            type="button"
+                                                            onMouseDown={(e) => {
+                                                                e.preventDefault();
+                                                                e.stopPropagation();
+                                                                removeMultPreset(preset);
+                                                            }}
+                                                            className="absolute -top-1 -right-1 w-3 h-3 bg-destructive text-white rounded-full text-[8px] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                                                        >
+                                                            <X className="w-2 h-2" />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                                {/* 프리셋 추가 버튼 */}
+                                                {showAddMultPreset === candidate.id ? (
+                                                    <div className="flex items-center gap-1">
+                                                        <input
+                                                            type="number"
+                                                            value={newPresetValue}
+                                                            onChange={(e) => setNewPresetValue(e.target.value)}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === "Enter") {
+                                                                    e.preventDefault();
+                                                                    addMultPreset(newPresetValue);
+                                                                }
+                                                                if (e.key === "Escape") {
+                                                                    setShowAddMultPreset(null);
+                                                                    setNewPresetValue("");
+                                                                }
+                                                            }}
+                                                            placeholder="x"
+                                                            className="w-12 h-5 text-[10px] px-1 border rounded"
+                                                            autoFocus
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            onMouseDown={(e) => {
+                                                                e.preventDefault();
+                                                                addMultPreset(newPresetValue);
+                                                            }}
+                                                            className="text-[10px] text-teal-600 hover:underline"
+                                                        >
+                                                            추가
+                                                        </button>
+                                                    </div>
+                                                ) : (
                                                     <button
-                                                        key={preset}
                                                         type="button"
                                                         onMouseDown={(e) => {
                                                             e.preventDefault();
-                                                            setMultiplierPreset(candidate.id, preset);
+                                                            setShowAddMultPreset(candidate.id);
+                                                            setNewPresetValue("");
                                                         }}
-                                                        className={cn(
-                                                            "px-1.5 py-0.5 text-[10px] font-medium rounded border transition-all",
-                                                            "hover:bg-teal-600 hover:text-white hover:border-teal-600",
-                                                            candidate.mInput === preset.toString()
-                                                                ? "bg-teal-600 text-white border-teal-600"
-                                                                : "bg-muted/50 text-muted-foreground border-border/50"
-                                                        )}
+                                                        className="px-1.5 py-0.5 text-[10px] font-medium rounded border border-dashed border-teal-600/50 text-teal-600 hover:bg-teal-600/10 transition-all"
                                                     >
-                                                        {preset}x
+                                                        <Plus className="w-3 h-3" />
                                                     </button>
-                                                ))}
+                                                )}
                                             </div>
                                         )}
                                     </div>
