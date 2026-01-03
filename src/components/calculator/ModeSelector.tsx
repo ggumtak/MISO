@@ -3,8 +3,8 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { OptimizationMode } from "@/types/calculator";
-import { Lock, Sparkles } from "lucide-react";
-import { useMemo, useEffect } from "react";
+import { Sparkles } from "lucide-react";
+import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 
 interface Candidate {
@@ -22,7 +22,7 @@ interface ModeSelectorProps {
     candidates?: Candidate[];
 }
 
-type LockReason = "multipliers" | "expected" | null;
+type RiskReason = "multipliers" | "expected" | null;
 
 // Return null if inputs are incomplete to avoid sticky locks while editing.
 const getMaxExpectedRatio = (candidates: Candidate[]): number | null => {
@@ -49,52 +49,38 @@ export function ModeSelector({
 }: ModeSelectorProps) {
     const activeStrategy = STRATEGIES.find((s) => s.id === selectedMode) || STRATEGIES[0];
 
-    // 기댓값이 음수인 모드 잠금 여부 계산
-    const { lockedModes, lockReason, maxExpectedRatio } = useMemo(() => {
-        const locked = new Set<OptimizationMode>();
+    // 기대값 손해 위험 안내 (잠금은 하지 않음)
+    const { riskReason, maxExpectedRatio } = useMemo(() => {
         if (!budget || budget <= 0 || !candidates || candidates.length === 0) {
-            return { lockedModes: locked, lockReason: null as LockReason, maxExpectedRatio: null as number | null };
+            return { riskReason: null as RiskReason, maxExpectedRatio: null as number | null };
         }
 
         const maxRatio = getMaxExpectedRatio(candidates);
         if (maxRatio === null) {
-            return { lockedModes: locked, lockReason: null as LockReason, maxExpectedRatio: null };
+            return { riskReason: null as RiskReason, maxExpectedRatio: null };
         }
 
         // 모든 후보의 배당이 1 미만인 경우 = 어떤 모드든 손해
         const allMultipliersLessThanOne = candidates.every((c) => c.m < 1);
         if (allMultipliersLessThanOne) {
-            STRATEGIES.forEach((s) => locked.add(s.id));
-            return { lockedModes: locked, lockReason: "multipliers", maxExpectedRatio: maxRatio };
+            return { riskReason: "multipliers", maxExpectedRatio: maxRatio };
         }
 
-        // 기댓값 기반 잠금 (이론적 최대 EV < budget이면 손해)
+        // 기댓값 기반 경고 (이론적 최대 EV < budget이면 손해)
         if (maxRatio < 1) {
-            // 모든 모드가 손해이므로 전부 잠금
-            STRATEGIES.forEach((s) => locked.add(s.id));
-            return { lockedModes: locked, lockReason: "expected", maxExpectedRatio: maxRatio };
+            return { riskReason: "expected", maxExpectedRatio: maxRatio };
         }
 
-        return { lockedModes: locked, lockReason: null, maxExpectedRatio: maxRatio };
+        return { riskReason: null, maxExpectedRatio: maxRatio };
     }, [budget, candidates]);
 
-    // 추천 모드 계산 (잠기지 않은 모드 중 우선순위가 가장 높은 것)
-    const recommendedMode = useMemo(() => {
-        const availableStrategies = STRATEGIES.filter((s) => !lockedModes.has(s.id));
-        if (availableStrategies.length === 0) return null;
-
-        // recommendPriority가 가장 낮은 (우선순위 높은) 전략 선택
-        return availableStrategies.reduce((best, current) =>
-            current.recommendPriority < best.recommendPriority ? current : best
-        );
-    }, [lockedModes]);
-
-    // 현재 선택된 모드가 잠겼거나, 초기 상태일 때 추천 모드로 자동 전환
-    useEffect(() => {
-        if (recommendedMode && lockedModes.has(selectedMode)) {
-            onSelectMode(recommendedMode.id);
-        }
-    }, [lockedModes, recommendedMode, selectedMode, onSelectMode]);
+    // 추천 모드 계산 (우선순위가 가장 높은 전략)
+    const recommendedMode =
+        STRATEGIES.length === 0
+            ? null
+            : STRATEGIES.reduce((best, current) =>
+                current.recommendPriority < best.recommendPriority ? current : best
+            );
 
     const handleParamChange = (key: string, value: number) => {
         onUpdateParams({
@@ -109,49 +95,34 @@ export function ModeSelector({
         return value.toString();
     };
 
-    const lockDetail =
-        lockReason === "multipliers"
-            ? "배당률이 모두 1배 미만"
-            : lockReason === "expected"
-                ? "기대값이 본전(B) 미만"
-                : "사용 불가";
-
-    const lockSummary =
-        lockReason === "multipliers"
-            ? "배당률이 모두 1배 미만이라 어떤 전략을 써도 손해입니다."
-            : lockReason === "expected"
-                ? "현재 입력 기준으로 최대 기대값이 본전(B) 아래입니다."
-                : "현재 입력으로는 손해가 예상됩니다.";
+    const riskSummary =
+        riskReason === "multipliers"
+            ? "배당률이 모두 1배 미만이라 어떤 배분을 해도 기대값이 줄어듭니다."
+            : riskReason === "expected"
+                ? "현재 입력 기준으로 최대 기대값이 본전(B) 아래입니다. 그래도 계산은 가능합니다."
+                : "";
 
     return (
         <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {STRATEGIES.map((strategy) => {
                     const isSelected = selectedMode === strategy.id;
-                    const isLocked = lockedModes.has(strategy.id);
                     const isRecommended = recommendedMode?.id === strategy.id;
                     const Icon = strategy.icon;
 
                     return (
                         <Card
                             key={strategy.id}
-                            onClick={() => {
-                                if (!isLocked) {
-                                    onSelectMode(strategy.id);
-                                }
-                            }}
+                            onClick={() => onSelectMode(strategy.id)}
                             className={cn(
-                                "transition-all relative",
-                                isLocked
-                                    ? "cursor-not-allowed opacity-60 bg-muted/30 border-muted"
-                                    : "cursor-pointer hover:scale-[1.02] active:scale-[0.98]",
-                                isSelected && !isLocked
+                                "transition-all relative cursor-pointer hover:scale-[1.02] active:scale-[0.98]",
+                                isSelected
                                     ? "border-primary bg-primary/10 shadow-lg shadow-primary/10"
-                                    : !isLocked && "hover:bg-muted/50 border-transparent bg-secondary/20"
+                                    : "hover:bg-muted/50 border-transparent bg-secondary/20"
                             )}
                         >
                             {/* 추천 뱃지 */}
-                            {isRecommended && !isLocked && (
+                            {isRecommended && (
                                 <div className="absolute -top-2 -right-2 z-20">
                                     <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[10px] px-2 py-0.5 shadow-md">
                                         <Sparkles className="w-3 h-3 mr-1" />
@@ -159,31 +130,17 @@ export function ModeSelector({
                                     </Badge>
                                 </div>
                             )}
-
-                            {isLocked && (
-                                <div className="absolute inset-0 flex items-center justify-center bg-background/60 backdrop-blur-[1px] rounded-lg z-10">
-                                    <div className="flex flex-col items-center gap-1 text-center px-3">
-                                        <Lock className="w-5 h-5 text-destructive" />
-                                        <span className="text-xs text-destructive font-medium">
-                                            사용 불가
-                                        </span>
-                                        <span className="text-[10px] text-muted-foreground">
-                                            {lockDetail}
-                                        </span>
-                                    </div>
-                                </div>
-                            )}
                             <CardHeader className="p-4">
                                 <CardTitle className="text-base flex items-center gap-2">
                                     <div
                                         className={cn(
                                             "p-2 rounded-lg bg-background",
-                                            isSelected && !isLocked ? strategy.color : "text-muted-foreground"
+                                            isSelected ? strategy.color : "text-muted-foreground"
                                         )}
                                     >
                                         <Icon className="w-5 h-5" />
                                     </div>
-                                    <span className={isSelected && !isLocked ? "text-foreground" : "text-muted-foreground"}>
+                                    <span className={isSelected ? "text-foreground" : "text-muted-foreground"}>
                                         {strategy.title}
                                     </span>
                                 </CardTitle>
@@ -197,13 +154,13 @@ export function ModeSelector({
             </div>
 
             {/* 선택된 전략의 팁 표시 */}
-            {activeStrategy && !lockedModes.has(activeStrategy.id) && (
+            {activeStrategy && (
                 <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm">
                     <p className="text-primary/90">{activeStrategy.tip}</p>
                 </div>
             )}
 
-            {activeStrategy.params.length > 0 && !lockedModes.has(activeStrategy.id) && (
+            {activeStrategy.params.length > 0 && (
                 <Card className="bg-muted/30 border-dashed">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-sm uppercase tracking-wider text-muted-foreground">
@@ -261,12 +218,12 @@ export function ModeSelector({
                 </Card>
             )}
 
-            {lockedModes.size > 0 && lockedModes.size === STRATEGIES.length && (
-                <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
-                    <p className="font-semibold">모든 전략이 잠겼습니다.</p>
-                    <p className="text-xs mt-1 text-destructive/80">{lockSummary}</p>
+            {riskReason && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                    <p className="font-semibold">손해 가능성이 큽니다.</p>
+                    <p className="text-xs mt-1 text-amber-900/80">{riskSummary}</p>
                     {maxExpectedRatio !== null && (
-                        <p className="text-xs mt-2 text-muted-foreground">
+                        <p className="text-xs mt-2 text-amber-900/70">
                             최대 기대배율: {maxExpectedRatio.toFixed(2)}x
                         </p>
                     )}
