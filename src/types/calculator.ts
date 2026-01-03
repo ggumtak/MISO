@@ -10,6 +10,7 @@ export interface Candidate {
 export type OptimizationMode =
     | "all_weather_maximin"
     | "hedge_breakeven_then_ev"
+    | "ev_with_shortfall_penalty"
     | "beast_ev_under_maxloss"
     | "ev_under_lossprob_cap"
     | "maximize_prob_ge_target"

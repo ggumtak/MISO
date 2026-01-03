@@ -83,6 +83,7 @@
 
 - `all_weather_maximin`: 최악 시 지급(G) 최대화
 - `hedge_breakeven_then_ev`: 손익분기 확보 후 EV 최대화
+- `ev_with_shortfall_penalty`: 손실 패널티(예산 미만) 반영 EV 균형
 - `beast_ev_under_maxloss`: 최악 손실 비율 제한 + EV 최대화
 - `ev_under_lossprob_cap`: 손실 확률 제한 + EV 최대화
 - `maximize_prob_ge_target`: 목표 지급액 이상 확률 최대화

@@ -5,6 +5,7 @@ export const dynamic = "force-dynamic";
 const EPS = 1e-9;
 const NEG = Number.NEGATIVE_INFINITY;
 const POS = Number.POSITIVE_INFINITY;
+const MIN_ALLOCATION = 10;
 
 type CandidateInput = { name: string; p: number; m: string | number };
 type OptimizeRequest = {
@@ -63,6 +64,10 @@ function buildPayoutTable(numer: bigint, denom: bigint, budget: number) {
     return payouts;
 }
 
+function isAllocationAllowed(value: number) {
+    return value === 0 || value >= MIN_ALLOCATION;
+}
+
 function maskProbabilities(probabilities: number[]) {
     const count = 1 << probabilities.length;
     const totals = new Float64Array(count);
@@ -97,6 +102,7 @@ function optimizeAllWeather(payouts: number[][], probabilities: number[], budget
             let bestEV = NEG;
             let bestS = -1;
             for (let s = 0; s <= b; s += 1) {
+                if (!isAllocationAllowed(s)) continue;
                 const prevBudget = b - s;
                 const prevMinVal = prevMin[prevBudget];
                 if (prevMinVal === NEG) continue;
@@ -159,6 +165,7 @@ function optimizeEVWithMinPayout(
             let bestEV = NEG;
             let bestS = -1;
             for (let s = 0; s <= b; s += 1) {
+                if (!isAllocationAllowed(s)) continue;
                 const prevBudget = b - s;
                 const prevVal = prevEV[prevBudget];
                 if (prevVal === NEG) continue;
@@ -181,6 +188,77 @@ function optimizeEVWithMinPayout(
     }
 
     if (prevEV[budget] === NEG) return null;
+
+    const allocation = new Array<number>(n).fill(0);
+    let remaining = budget;
+    for (let i = n - 1; i >= 0; i -= 1) {
+        const s = choices[i][remaining];
+        if (s < 0) return null;
+        allocation[i] = s;
+        remaining -= s;
+    }
+    return allocation;
+}
+
+function optimizeExpectedUtility(
+    payouts: number[][],
+    probabilities: number[],
+    budget: number,
+    utility: (payout: number) => number
+) {
+    const n = payouts.length;
+    const choices: Int32Array[] = [];
+    let prevUtility = new Float64Array(budget + 1);
+    let prevEV = new Float64Array(budget + 1);
+    prevUtility.fill(NEG);
+    prevEV.fill(NEG);
+    prevUtility[0] = 0;
+    prevEV[0] = 0;
+
+    for (let i = 0; i < n; i += 1) {
+        const nextUtility = new Float64Array(budget + 1);
+        const nextEV = new Float64Array(budget + 1);
+        const choice = new Int32Array(budget + 1);
+        nextUtility.fill(NEG);
+        nextEV.fill(NEG);
+        choice.fill(-1);
+
+        for (let b = 0; b <= budget; b += 1) {
+            let bestUtility = NEG;
+            let bestEV = NEG;
+            let bestS = -1;
+            for (let s = 0; s <= b; s += 1) {
+                if (!isAllocationAllowed(s)) continue;
+                const prevBudget = b - s;
+                const prevUtilityVal = prevUtility[prevBudget];
+                if (prevUtilityVal === NEG) continue;
+                const payout = payouts[i][s];
+                const util = utility(payout);
+                if (!Number.isFinite(util)) continue;
+                const candidateUtility = prevUtilityVal + probabilities[i] * util;
+                const candidateEV = prevEV[prevBudget] + probabilities[i] * payout;
+                if (
+                    candidateUtility > bestUtility + EPS ||
+                    (Math.abs(candidateUtility - bestUtility) <= EPS && candidateEV > bestEV + EPS)
+                ) {
+                    bestUtility = candidateUtility;
+                    bestEV = candidateEV;
+                    bestS = s;
+                }
+            }
+            if (bestS >= 0) {
+                nextUtility[b] = bestUtility;
+                nextEV[b] = bestEV;
+                choice[b] = bestS;
+            }
+        }
+
+        choices[i] = choice;
+        prevUtility = nextUtility;
+        prevEV = nextEV;
+    }
+
+    if (prevUtility[budget] === NEG) return null;
 
     const allocation = new Array<number>(n).fill(0);
     let remaining = budget;
@@ -220,6 +298,7 @@ function optimizeEVUnderLossCap(
                 const prevVal = prev[prevOffset + prevMask];
                 if (prevVal === NEG) continue;
                 for (let s = 0; s <= budget - prevBudget; s += 1) {
+                    if (!isAllocationAllowed(s)) continue;
                     const payout = payouts[i][s];
                     const newBudget = prevBudget + s;
                     const loss = payout < budget ? bit : 0;
@@ -300,6 +379,7 @@ function optimizeMaximizeProbTarget(
                 if (prevVal === NEG) continue;
                 const prevMinVal = prevMin[prevOffset + prevMask];
                 for (let s = 0; s <= budget - prevBudget; s += 1) {
+                    if (!isAllocationAllowed(s)) continue;
                     const payout = payouts[i][s];
                     const newBudget = prevBudget + s;
                     const hit = payout >= target ? bit : 0;
@@ -394,6 +474,7 @@ function optimizeSparseKFocus(
                 const prevVal = prev[prevOffset + prevK];
                 if (prevVal === NEG) continue;
                 for (let s = 0; s <= budget - prevBudget; s += 1) {
+                    if (!isAllocationAllowed(s)) continue;
                     const newBudget = prevBudget + s;
                     const newK = prevK + (s > 0 ? 1 : 0);
                     if (newK > kMax) continue;
@@ -523,8 +604,8 @@ export async function POST(request: Request) {
     const { budget, candidates, rounding, mode } = parsed;
     const params = (parsed.params ?? {}) as Record<string, unknown>;
 
-    if (!Number.isInteger(budget) || budget <= 0) {
-        return jsonError(["투표권은 1 이상의 정수여야 합니다."]);
+    if (!Number.isInteger(budget) || budget < MIN_ALLOCATION) {
+        return jsonError([`투표권은 ${MIN_ALLOCATION} 이상이어야 합니다.`]);
     }
 
     if (!Array.isArray(candidates) || candidates.length === 0) {
@@ -607,6 +688,24 @@ export async function POST(request: Request) {
                 notes.push("G ≥ B 조건을 만족하는 해가 없습니다. 올웨더 해로 대체합니다.");
                 allocation = optimizeAllWeather(payouts, probabilities, budget);
             }
+            break;
+        }
+        case "ev_with_shortfall_penalty": {
+            let penalty = Number(params.shortfallPenalty);
+            if (!Number.isFinite(penalty)) {
+                return jsonError(["shortfallPenalty 값이 필요합니다."]);
+            }
+            if (penalty > 1 && penalty <= 100) {
+                penalty /= 100;
+                notes.push("shortfallPenalty를 백분율로 해석했습니다.");
+            }
+            if (penalty < 0 || penalty > 1) {
+                return jsonError(["shortfallPenalty는 0~1 범위여야 합니다."]);
+            }
+            allocation = optimizeExpectedUtility(payouts, probabilities, budget, (payout) => {
+                const shortfall = Math.max(0, budget - payout);
+                return payout - penalty * shortfall;
+            });
             break;
         }
         case "beast_ev_under_maxloss": {

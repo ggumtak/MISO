@@ -44,6 +44,28 @@ export const STRATEGIES: StrategyDef[] = [
         params: [],
     },
     {
+        id: "ev_with_shortfall_penalty",
+        title: "손실 패널티 균형",
+        description: "기대값을 최대화하되 예산 미만 손실에 패널티를 부여",
+        tip: "패널티가 높을수록 손실 회피 쪽으로 배분됩니다.",
+        icon: LineChart,
+        color: "text-teal-400",
+        recommendPriority: 3,
+        params: [
+            {
+                key: "shortfallPenalty",
+                label: "손실 패널티",
+                type: "slider",
+                min: 0,
+                max: 100,
+                step: 5,
+                default: 50,
+                suffix: "%",
+                unit: "percent",
+            },
+        ],
+    },
+    {
         id: "beast_ev_under_maxloss",
         title: "고수익 추구",
         description: "손실 한도 내에서 평균 수익 최대화",

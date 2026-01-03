@@ -13,7 +13,7 @@ import { Candidate } from "@/types/calculator";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { parseMultiplierInput, parseProbabilityInput } from "@/lib/inputs";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 
 interface CandidateTableProps {
     candidates: Candidate[];
@@ -28,11 +28,74 @@ interface CandidateTableProps {
 const DEFAULT_PROBABILITY_PRESETS = [1, 2, 3, 4, 5, 10, 50, 70, 80, 90];
 
 // 기본 배당 프리셋 값
-const DEFAULT_MULTIPLIER_PRESETS = [1.5, 9, 17, 20, 50];
+const DEFAULT_MULTIPLIER_PRESETS = [1.3, 1.5, 9, 17, 20, 50];
+
+const DEFAULT_PAIR_PRESETS: Record<string, number> = {
+    "90": 1.3,
+    "70": 1.5,
+    "10": 9,
+    "5": 17,
+    "1": 50,
+    "4": 20,
+};
 
 // localStorage 키
 const PROB_PRESETS_KEY = "terun-probability-presets";
 const MULT_PRESETS_KEY = "terun-multiplier-presets";
+const PAIR_PRESETS_KEY = "terun-preset-pairs";
+
+const normalizePresetValue = (value: number) => {
+    if (!Number.isFinite(value)) return null;
+    return Math.round(value * 10000) / 10000;
+};
+
+const presetKey = (value: number) => {
+    const normalized = normalizePresetValue(value);
+    if (normalized === null) return null;
+    return normalized % 1 === 0 ? normalized.toFixed(0) : normalized.toString();
+};
+
+const formatPresetValue = (value: number) => presetKey(value) ?? "";
+
+const mergePresetList = (current: number[], extra: number[]) => {
+    const map = new Map<string, number>();
+    const add = (value: number) => {
+        const key = presetKey(value);
+        if (!key) return;
+        if (!map.has(key)) {
+            const normalized = normalizePresetValue(value);
+            if (normalized !== null) map.set(key, normalized);
+        }
+    };
+    current.forEach(add);
+    extra.forEach(add);
+    const merged = Array.from(map.values()).sort((a, b) => a - b);
+    const isSame =
+        merged.length === current.length && merged.every((value, index) => value === current[index]);
+    return isSame ? current : merged;
+};
+
+const parsePresetList = (value: unknown) => {
+    if (!Array.isArray(value)) return null;
+    const parsed = value
+        .map((item) => Number(item))
+        .filter((item) => Number.isFinite(item));
+    return parsed.length > 0 ? parsed : null;
+};
+
+const parsePairPresets = (value: unknown) => {
+    if (!value || typeof value !== "object") return null;
+    const output: Record<string, number> = {};
+    Object.entries(value as Record<string, unknown>).forEach(([probKey, multValue]) => {
+        const prob = Number(probKey);
+        const mult = Number(multValue);
+        const probKeyNormalized = presetKey(prob);
+        const multNormalized = normalizePresetValue(mult);
+        if (!probKeyNormalized || multNormalized === null) return;
+        output[probKeyNormalized] = multNormalized;
+    });
+    return Object.keys(output).length > 0 ? output : null;
+};
 
 export function CandidateTable({
     candidates,
@@ -48,6 +111,7 @@ export function CandidateTable({
     const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
     // 커스텀 프리셋 상태
+    const [pairPresets, setPairPresets] = useState<Record<string, number>>(DEFAULT_PAIR_PRESETS);
     const [probPresets, setProbPresets] = useState<number[]>(DEFAULT_PROBABILITY_PRESETS);
     const [multPresets, setMultPresets] = useState<number[]>(DEFAULT_MULTIPLIER_PRESETS);
     const [showAddProbPreset, setShowAddProbPreset] = useState<string | null>(null);
@@ -59,14 +123,27 @@ export function CandidateTable({
         try {
             const savedProb = localStorage.getItem(PROB_PRESETS_KEY);
             const savedMult = localStorage.getItem(MULT_PRESETS_KEY);
+            const savedPairs = localStorage.getItem(PAIR_PRESETS_KEY);
+            let nextProb = DEFAULT_PROBABILITY_PRESETS;
+            let nextMult = DEFAULT_MULTIPLIER_PRESETS;
+            let nextPairs = parsePairPresets(DEFAULT_PAIR_PRESETS) ?? DEFAULT_PAIR_PRESETS;
+
             if (savedProb) {
-                const parsed = JSON.parse(savedProb);
-                if (Array.isArray(parsed)) setProbPresets(parsed);
+                const parsed = parsePresetList(JSON.parse(savedProb));
+                if (parsed) nextProb = parsed;
             }
             if (savedMult) {
-                const parsed = JSON.parse(savedMult);
-                if (Array.isArray(parsed)) setMultPresets(parsed);
+                const parsed = parsePresetList(JSON.parse(savedMult));
+                if (parsed) nextMult = parsed;
             }
+            if (savedPairs) {
+                const parsed = parsePairPresets(JSON.parse(savedPairs));
+                if (parsed) nextPairs = { ...nextPairs, ...parsed };
+            }
+
+            setPairPresets(nextPairs);
+            setProbPresets(mergePresetList(nextProb, Object.keys(nextPairs).map(Number)));
+            setMultPresets(mergePresetList(nextMult, Object.values(nextPairs)));
         } catch (e) {
             console.warn("프리셋 로드 실패", e);
         }
@@ -81,63 +158,177 @@ export function CandidateTable({
         localStorage.setItem(MULT_PRESETS_KEY, JSON.stringify(multPresets));
     }, [multPresets]);
 
+    useEffect(() => {
+        localStorage.setItem(PAIR_PRESETS_KEY, JSON.stringify(pairPresets));
+    }, [pairPresets]);
+
+    const pairByMultiplier = useMemo(() => {
+        const output: Record<string, number> = {};
+        Object.entries(pairPresets).forEach(([probKey, multValue]) => {
+            const multKey = presetKey(multValue);
+            const probValue = Number(probKey);
+            const normalizedProb = normalizePresetValue(probValue);
+            if (!multKey || normalizedProb === null) return;
+            output[multKey] = normalizedProb;
+        });
+        return output;
+    }, [pairPresets]);
+
+    const rememberPair = useCallback((probPercent: number, multiplier: number) => {
+        const normalizedProb = normalizePresetValue(probPercent);
+        const normalizedMult = normalizePresetValue(multiplier);
+        if (normalizedProb === null || normalizedMult === null) return;
+        const key = presetKey(normalizedProb);
+        if (!key) return;
+
+        setPairPresets((prev) => {
+            if (prev[key] === normalizedMult) return prev;
+            return { ...prev, [key]: normalizedMult };
+        });
+        setProbPresets((prev) => mergePresetList(prev, [normalizedProb]));
+        setMultPresets((prev) => mergePresetList(prev, [normalizedMult]));
+    }, []);
+
+    const maybeRememberPairFromCandidate = useCallback(
+        (candidate: Candidate) => {
+            const prob = parseProbabilityInput(candidate.pInput);
+            const mult = parseMultiplierInput(candidate.mInput);
+            if (!Number.isFinite(prob) || prob <= 0 || prob > 1) return;
+            if (!Number.isFinite(mult) || mult <= 0) return;
+            rememberPair(prob * 100, mult);
+        },
+        [rememberPair]
+    );
+
     // 확률 프리셋 추가
     const addProbPreset = useCallback((value: string) => {
         const num = parseFloat(value);
-        if (!Number.isFinite(num) || num <= 0 || num > 100) return;
-        if (probPresets.includes(num)) return;
-        setProbPresets(prev => [...prev, num].sort((a, b) => a - b));
+        const normalized = normalizePresetValue(num);
+        if (normalized === null || normalized <= 0 || normalized > 100) return;
+        setProbPresets((prev) => mergePresetList(prev, [normalized]));
         setShowAddProbPreset(null);
         setNewPresetValue("");
-    }, [probPresets]);
+    }, []);
 
     // 확률 프리셋 삭제
     const removeProbPreset = useCallback((value: number) => {
-        setProbPresets(prev => prev.filter(v => v !== value));
+        const key = presetKey(value);
+        if (!key) return;
+        setProbPresets((prev) => prev.filter((item) => presetKey(item) !== key));
     }, []);
 
     // 배당 프리셋 추가
     const addMultPreset = useCallback((value: string) => {
         const num = parseFloat(value);
-        if (!Number.isFinite(num) || num <= 0) return;
-        if (multPresets.includes(num)) return;
-        setMultPresets(prev => [...prev, num].sort((a, b) => a - b));
+        const normalized = normalizePresetValue(num);
+        if (normalized === null || normalized <= 0) return;
+        setMultPresets((prev) => mergePresetList(prev, [normalized]));
         setShowAddMultPreset(null);
         setNewPresetValue("");
-    }, [multPresets]);
+    }, []);
 
     // 배당 프리셋 삭제
     const removeMultPreset = useCallback((value: number) => {
-        setMultPresets(prev => prev.filter(v => v !== value));
+        const key = presetKey(value);
+        if (!key) return;
+        setMultPresets((prev) => prev.filter((item) => presetKey(item) !== key));
     }, []);
 
-    const updateCandidate = (id: string, field: "name" | "pInput" | "mInput", value: string) => {
-        onUpdate(
-            candidates.map((c) => {
+    const updateCandidateFields = useCallback(
+        (
+            id: string,
+            updates: { name?: string; pInput?: string; mInput?: string },
+            rememberPair = false
+        ) => {
+            const nextCandidates = candidates.map((c) => {
                 if (c.id !== id) return c;
-
-                if (field === "pInput") {
-                    const p = parseProbabilityInput(value);
-                    return { ...c, pInput: value, p };
+                const nextCandidate = { ...c };
+                if (updates.name !== undefined) nextCandidate.name = updates.name;
+                if (updates.pInput !== undefined) {
+                    nextCandidate.pInput = updates.pInput;
+                    nextCandidate.p = parseProbabilityInput(updates.pInput);
                 }
-
-                if (field === "mInput") {
-                    const m = parseMultiplierInput(value);
-                    return { ...c, mInput: value, m };
+                if (updates.mInput !== undefined) {
+                    nextCandidate.mInput = updates.mInput;
+                    nextCandidate.m = parseMultiplierInput(updates.mInput);
                 }
+                return nextCandidate;
+            });
 
-                return { ...c, name: value };
-            })
-        );
-    };
+            onUpdate(nextCandidates);
+
+            if (rememberPair) {
+                const updatedCandidate = nextCandidates.find((c) => c.id === id);
+                if (updatedCandidate) maybeRememberPairFromCandidate(updatedCandidate);
+            }
+        },
+        [candidates, onUpdate, maybeRememberPairFromCandidate]
+    );
+
+    const updateCandidate = useCallback(
+        (id: string, field: "name" | "pInput" | "mInput", value: string) => {
+            updateCandidateFields(id, { [field]: value } as { name?: string; pInput?: string; mInput?: string });
+        },
+        [updateCandidateFields]
+    );
 
     const setProbabilityPreset = (id: string, preset: number) => {
-        updateCandidate(id, "pInput", preset.toString());
+        const key = presetKey(preset);
+        const paired = key ? pairPresets[key] : undefined;
+        if (paired !== undefined) {
+            updateCandidateFields(id, {
+                pInput: formatPresetValue(preset),
+                mInput: formatPresetValue(paired),
+            }, true);
+            return;
+        }
+        updateCandidateFields(id, { pInput: formatPresetValue(preset) }, true);
     };
 
     const setMultiplierPreset = (id: string, preset: number) => {
-        updateCandidate(id, "mInput", preset.toString());
+        const key = presetKey(preset);
+        const paired = key ? pairByMultiplier[key] : undefined;
+        if (paired !== undefined) {
+            updateCandidateFields(id, {
+                mInput: formatPresetValue(preset),
+                pInput: formatPresetValue(paired),
+            }, true);
+            return;
+        }
+        updateCandidateFields(id, { mInput: formatPresetValue(preset) }, true);
     };
+
+    const handleProbFocus = useCallback((id: string) => {
+        setFocusedCandidateId(id);
+    }, []);
+
+    const handleProbBlur = useCallback(
+        (id: string, event: React.FocusEvent<HTMLDivElement>) => {
+            const nextTarget = event.relatedTarget as Node | null;
+            if (nextTarget && event.currentTarget.contains(nextTarget)) return;
+            setFocusedCandidateId(null);
+            setShowAddProbPreset(null);
+            const candidate = candidates.find((item) => item.id === id);
+            if (candidate) maybeRememberPairFromCandidate(candidate);
+        },
+        [candidates, maybeRememberPairFromCandidate]
+    );
+
+    const handleMultFocus = useCallback((id: string) => {
+        setFocusedMultiplierId(id);
+    }, []);
+
+    const handleMultBlur = useCallback(
+        (id: string, event: React.FocusEvent<HTMLDivElement>) => {
+            const nextTarget = event.relatedTarget as Node | null;
+            if (nextTarget && event.currentTarget.contains(nextTarget)) return;
+            setFocusedMultiplierId(null);
+            setShowAddMultPreset(null);
+            const candidate = candidates.find((item) => item.id === id);
+            if (candidate) maybeRememberPairFromCandidate(candidate);
+        },
+        [candidates, maybeRememberPairFromCandidate]
+    );
 
     const removeCandidate = (id: string) => {
         onUpdate(candidates.filter((c) => c.id !== id));
@@ -277,13 +468,15 @@ export function CandidateTable({
                                     />
                                 </TableCell>
                                 <TableCell>
-                                    <div className="space-y-1">
+                                    <div
+                                        className="space-y-1"
+                                        onFocusCapture={() => handleProbFocus(candidate.id)}
+                                        onBlurCapture={(event) => handleProbBlur(candidate.id, event)}
+                                    >
                                         <div className="relative">
                                             <Input
                                                 value={candidate.pInput}
                                                 onChange={(e) => updateCandidate(candidate.id, "pInput", e.target.value)}
-                                                onFocus={() => setFocusedCandidateId(candidate.id)}
-                                                onBlur={() => setTimeout(() => setFocusedCandidateId(null), 150)}
                                                 inputMode="decimal"
                                                 className={cn(
                                                     "font-mono text-right pr-8",
@@ -378,15 +571,17 @@ export function CandidateTable({
                                     </div>
                                 </TableCell>
                                 <TableCell>
-                                    <div className="space-y-1">
+                                    <div
+                                        className="space-y-1"
+                                        onFocusCapture={() => handleMultFocus(candidate.id)}
+                                        onBlurCapture={(event) => handleMultBlur(candidate.id, event)}
+                                    >
                                         <div className="relative">
                                             <Input
                                                 type="number"
                                                 step="0.01"
                                                 value={candidate.mInput}
                                                 onChange={(e) => updateCandidate(candidate.id, "mInput", e.target.value)}
-                                                onFocus={() => setFocusedMultiplierId(candidate.id)}
-                                                onBlur={() => setTimeout(() => setFocusedMultiplierId(null), 150)}
                                                 className={cn(
                                                     "font-mono text-right pr-8 text-teal-600",
                                                     errors[candidate.id]?.m ? "border-destructive text-destructive" : ""

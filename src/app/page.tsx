@@ -80,12 +80,14 @@ const SAMPLE_CANDIDATES: Candidate[] = [
     createCandidate("t5", "캐릭터 E", "4", "20"),
 ];
 
+const MIN_ALLOCATION = 10;
+
 const getBudgetError = (input: string) => {
     if (!input.trim()) return "투표권을 입력해 주세요.";
     const value = Number(input);
     if (!Number.isFinite(value)) return "투표권은 숫자여야 합니다.";
     if (!Number.isInteger(value)) return "투표권은 정수여야 합니다.";
-    if (value <= 0) return "투표권은 1 이상이어야 합니다.";
+    if (value < MIN_ALLOCATION) return `투표권은 ${MIN_ALLOCATION} 이상이어야 합니다.`;
     return null;
 };
 

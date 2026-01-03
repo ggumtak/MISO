@@ -22,7 +22,7 @@ export function BudgetInput({ value, onChange, error }: BudgetInputProps) {
                 <div className="relative">
                     <Input
                         type="number"
-                        min={1}
+                        min={10}
                         step={1}
                         inputMode="numeric"
                         value={value}

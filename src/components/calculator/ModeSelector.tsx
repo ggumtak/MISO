@@ -26,9 +26,10 @@ interface ModeSelectorProps {
 const calculateMaxExpectedValue = (budget: number, candidates: Candidate[]): number => {
     if (!candidates.length || budget <= 0) return 0;
 
-    // 최대 EV는 각각에 비례 배분할 때 근사적으로 budget * sum(p_i * m_i) 정도
-    const theoreticalMaxEV = candidates.reduce((sum, c) => {
-        return sum + c.p * (budget * c.m);
+    // EV 상한: 가장 높은 p*m 후보에 전액 배분하는 경우
+    const theoreticalMaxEV = candidates.reduce((max, c) => {
+        if (!Number.isFinite(c.p) || !Number.isFinite(c.m)) return max;
+        return Math.max(max, c.p * budget * c.m);
     }, 0);
 
     return theoreticalMaxEV;
