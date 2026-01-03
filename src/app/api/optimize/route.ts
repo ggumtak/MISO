@@ -681,6 +681,10 @@ export async function POST(request: Request) {
             allocation = optimizeAllWeather(payouts, probabilities, budget);
             break;
         }
+        case "maximize_ev": {
+            allocation = optimizeEVWithMinPayout(payouts, probabilities, budget, null);
+            break;
+        }
         case "hedge_breakeven_then_ev": {
             allocation = optimizeEVWithMinPayout(payouts, probabilities, budget, budget);
             if (!allocation) {

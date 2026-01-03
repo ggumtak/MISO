@@ -22,28 +22,20 @@ interface ModeSelectorProps {
     candidates?: Candidate[];
 }
 
-// 간단한 기댓값 계산: 각 캐릭터에 전액 배팅했을 때 최대 기댓값
-const calculateMaxExpectedValue = (budget: number, candidates: Candidate[]): number => {
-    if (!candidates.length || budget <= 0) return 0;
+type LockReason = "multipliers" | "expected" | null;
 
-    // EV 상한: 가장 높은 p*m 후보에 전액 배분하는 경우
-    const theoreticalMaxEV = candidates.reduce((max, c) => {
-        if (!Number.isFinite(c.p) || !Number.isFinite(c.m)) return max;
-        return Math.max(max, c.p * budget * c.m);
-    }, 0);
-
-    return theoreticalMaxEV;
-};
-
-// 기댓값이 항상 음수인지 확인 (budget보다 EV가 낮으면 손해)
-const isAlwaysLoss = (budget: number, candidates: Candidate[]): boolean => {
-    if (!candidates.length || budget <= 0) return false;
-
-    // 이론적 최대 기댓값 계산
-    const maxEV = calculateMaxExpectedValue(budget, candidates);
-
-    // 기댓값이 투자금보다 낮으면 손해
-    return maxEV < budget;
+// Return null if inputs are incomplete to avoid sticky locks while editing.
+const getMaxExpectedRatio = (candidates: Candidate[]): number | null => {
+    if (!candidates.length) return null;
+    let maxRatio = 0;
+    for (const candidate of candidates) {
+        if (!Number.isFinite(candidate.p) || !Number.isFinite(candidate.m)) {
+            return null;
+        }
+        if (candidate.p < 0 || candidate.m <= 0) return null;
+        maxRatio = Math.max(maxRatio, candidate.p * candidate.m);
+    }
+    return maxRatio;
 };
 
 export function ModeSelector({
@@ -58,27 +50,32 @@ export function ModeSelector({
     const activeStrategy = STRATEGIES.find((s) => s.id === selectedMode) || STRATEGIES[0];
 
     // 기댓값이 음수인 모드 잠금 여부 계산
-    const lockedModes = useMemo(() => {
-        if (!budget || !candidates || candidates.length === 0) {
-            return new Set<OptimizationMode>();
+    const { lockedModes, lockReason, maxExpectedRatio } = useMemo(() => {
+        const locked = new Set<OptimizationMode>();
+        if (!budget || budget <= 0 || !candidates || candidates.length === 0) {
+            return { lockedModes: locked, lockReason: null as LockReason, maxExpectedRatio: null as number | null };
         }
 
-        const locked = new Set<OptimizationMode>();
+        const maxRatio = getMaxExpectedRatio(candidates);
+        if (maxRatio === null) {
+            return { lockedModes: locked, lockReason: null as LockReason, maxExpectedRatio: null };
+        }
 
         // 모든 후보의 배당이 1 미만인 경우 = 어떤 모드든 손해
         const allMultipliersLessThanOne = candidates.every((c) => c.m < 1);
         if (allMultipliersLessThanOne) {
             STRATEGIES.forEach((s) => locked.add(s.id));
-            return locked;
+            return { lockedModes: locked, lockReason: "multipliers", maxExpectedRatio: maxRatio };
         }
 
         // 기댓값 기반 잠금 (이론적 최대 EV < budget이면 손해)
-        if (isAlwaysLoss(budget, candidates)) {
+        if (maxRatio < 1) {
             // 모든 모드가 손해이므로 전부 잠금
             STRATEGIES.forEach((s) => locked.add(s.id));
+            return { lockedModes: locked, lockReason: "expected", maxExpectedRatio: maxRatio };
         }
 
-        return locked;
+        return { lockedModes: locked, lockReason: null, maxExpectedRatio: maxRatio };
     }, [budget, candidates]);
 
     // 추천 모드 계산 (잠기지 않은 모드 중 우선순위가 가장 높은 것)
@@ -111,6 +108,20 @@ export function ModeSelector({
         if (unit === "integer") return Math.round(value).toString();
         return value.toString();
     };
+
+    const lockDetail =
+        lockReason === "multipliers"
+            ? "배당률이 모두 1배 미만"
+            : lockReason === "expected"
+                ? "기대값이 본전(B) 미만"
+                : "사용 불가";
+
+    const lockSummary =
+        lockReason === "multipliers"
+            ? "배당률이 모두 1배 미만이라 어떤 전략을 써도 손해입니다."
+            : lockReason === "expected"
+                ? "현재 입력 기준으로 최대 기대값이 본전(B) 아래입니다."
+                : "현재 입력으로는 손해가 예상됩니다.";
 
     return (
         <div className="space-y-6">
@@ -157,7 +168,7 @@ export function ModeSelector({
                                             사용 불가
                                         </span>
                                         <span className="text-[10px] text-muted-foreground">
-                                            배당률이 낮아서 잠김
+                                            {lockDetail}
                                         </span>
                                     </div>
                                 </div>
@@ -252,13 +263,13 @@ export function ModeSelector({
 
             {lockedModes.size > 0 && lockedModes.size === STRATEGIES.length && (
                 <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
-                    <p className="font-semibold">모든 전략이 잠겼습니다</p>
-                    <p className="text-xs mt-1 text-destructive/80">
-                        현재 입력된 배당률로는 어떤 전략을 써도 손해입니다. 배당률을 확인해 주세요.
-                    </p>
-                    <p className="text-xs mt-2 text-muted-foreground">
-                        배당률이 모두 1배 미만이면 투자할수록 손해입니다.
-                    </p>
+                    <p className="font-semibold">모든 전략이 잠겼습니다.</p>
+                    <p className="text-xs mt-1 text-destructive/80">{lockSummary}</p>
+                    {maxExpectedRatio !== null && (
+                        <p className="text-xs mt-2 text-muted-foreground">
+                            최대 기대배율: {maxExpectedRatio.toFixed(2)}x
+                        </p>
+                    )}
                 </div>
             )}
         </div>
