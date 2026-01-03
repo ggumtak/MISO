@@ -40,6 +40,7 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
     background-image:
@@ -49,6 +50,7 @@
     background-attachment: fixed;
     position: relative;
   }
+
   body::before {
     content: "";
     position: fixed;
@@ -61,7 +63,8 @@
     pointer-events: none;
     z-index: 0;
   }
-  body > * {
+
+  body>* {
     position: relative;
     z-index: 1;
   }
@@ -72,6 +75,7 @@
     opacity: 0;
     transform: translateY(12px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -82,6 +86,7 @@
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -91,7 +96,54 @@
   .animate-fade-up {
     animation: fade-up 0.6s ease both;
   }
+
   .animate-fade-in {
     animation: fade-in 0.5s ease both;
   }
+}
+
+/* 입력 필드 포커스 글로우 효과 */
+input:focus,
+input:focus-visible {
+  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.15);
+}
+
+/* 숫자 입력 스피너 숨김 (브라우저 기본 스피너) */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+/* 프리셋 버튼 컨테이너 스크롤바 스타일 */
+.preset-scroll::-webkit-scrollbar {
+  height: 4px;
+}
+
+.preset-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.preset-scroll::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 2px;
+}
+
+/* 드래그 핸들 커서 */
+.drag-handle {
+  cursor: grab;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+/* 드래그 중인 아이템 스타일 */
+.dragging {
+  opacity: 0.5;
+  background: hsl(var(--primary) / 0.1);
 }

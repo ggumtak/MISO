@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
     AlertTriangle,
     CheckCircle2,
@@ -10,6 +10,10 @@ import {
     RefreshCcw,
     RotateCcw,
     Share2,
+    Undo2,
+    Redo2,
+    Keyboard,
+    RotateCw,
 } from "lucide-react";
 
 import { BudgetInput } from "@/components/calculator/BudgetInput";
@@ -116,6 +120,18 @@ const getValidEV = (result?: OptimizationResult | null) => {
     return Number.isFinite(ev) ? ev! : null;
 };
 
+// 로컬 스토리지 키
+const STORAGE_KEY = "terun-calculator-state";
+const MAX_HISTORY = 15;
+
+// 상태 타입
+interface AppState {
+    budgetInput: string;
+    candidates: Candidate[];
+    mode: OptimizationMode;
+    modeParams: Record<string, number>;
+}
+
 export default function Home() {
     const [budgetInput, setBudgetInput] = useState("1000");
     const [candidates, setCandidates] = useState<Candidate[]>(
@@ -129,6 +145,67 @@ export default function Home() {
     const [notice, setNotice] = useState<Notice | null>(null);
     const [shareMessage, setShareMessage] = useState<string | null>(null);
     const [shareUrl, setShareUrl] = useState<string | null>(null);
+    const [showShortcuts, setShowShortcuts] = useState(false);
+
+    // Undo/Redo 히스토리
+    const [history, setHistory] = useState<AppState[]>([]);
+    const [historyIndex, setHistoryIndex] = useState(-1);
+    const isUndoRedoRef = useRef(false);
+
+    // 현재 상태를 히스토리에 저장
+    const pushHistory = useCallback(() => {
+        if (isUndoRedoRef.current) {
+            isUndoRedoRef.current = false;
+            return;
+        }
+        const currentState: AppState = {
+            budgetInput,
+            candidates: candidates.map(c => ({ ...c })),
+            mode,
+            modeParams: { ...modeParams },
+        };
+        setHistory(prev => {
+            const newHistory = prev.slice(0, historyIndex + 1);
+            newHistory.push(currentState);
+            if (newHistory.length > MAX_HISTORY) newHistory.shift();
+            return newHistory;
+        });
+        setHistoryIndex(prev => Math.min(prev + 1, MAX_HISTORY - 1));
+    }, [budgetInput, candidates, mode, modeParams, historyIndex]);
+
+    // Undo
+    const handleUndo = useCallback(() => {
+        if (historyIndex <= 0) return;
+        isUndoRedoRef.current = true;
+        const prevState = history[historyIndex - 1];
+        if (prevState) {
+            setBudgetInput(prevState.budgetInput);
+            setCandidates(prevState.candidates.map(c => ({ ...c })));
+            setMode(prevState.mode);
+            setModeParams({ ...prevState.modeParams });
+            setHistoryIndex(historyIndex - 1);
+        }
+    }, [history, historyIndex]);
+
+    // Redo
+    const handleRedo = useCallback(() => {
+        if (historyIndex >= history.length - 1) return;
+        isUndoRedoRef.current = true;
+        const nextState = history[historyIndex + 1];
+        if (nextState) {
+            setBudgetInput(nextState.budgetInput);
+            setCandidates(nextState.candidates.map(c => ({ ...c })));
+            setMode(nextState.mode);
+            setModeParams({ ...nextState.modeParams });
+            setHistoryIndex(historyIndex + 1);
+        }
+    }, [history, historyIndex]);
+
+    // 히스토리 저장 (디바운스)
+    useEffect(() => {
+        const timeout = setTimeout(pushHistory, 500);
+        return () => clearTimeout(timeout);
+    }, [budgetInput, candidates, mode, modeParams]);
 
     const activeStrategy = STRATEGIES.find((strategy) => strategy.id === mode);
     const budgetError = getBudgetError(budgetInput);
@@ -182,6 +259,95 @@ export default function Home() {
         const timeout = setTimeout(() => setShareMessage(null), 2500);
         return () => clearTimeout(timeout);
     }, [shareMessage]);
+
+    // 로컬 스토리지에서 복원 (URL 파라미터가 없을 때만)
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("data")) return; // URL 파라미터가 있으면 스킵
+
+        try {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                const parsed = JSON.parse(saved) as Partial<AppState>;
+                if (parsed.budgetInput) setBudgetInput(parsed.budgetInput);
+                if (parsed.candidates?.length) {
+                    setCandidates(parsed.candidates.map(c => ({
+                        ...c,
+                        p: parseProbabilityInput(c.pInput),
+                        m: parseMultiplierInput(c.mInput),
+                    })));
+                }
+                if (parsed.mode && STRATEGIES.some(s => s.id === parsed.mode)) {
+                    setMode(parsed.mode);
+                }
+                if (parsed.modeParams) setModeParams(parsed.modeParams);
+            }
+        } catch (e) {
+            console.warn("로컬 스토리지 복원 실패", e);
+        }
+    }, []);
+
+    // 로컬 스토리지에 자동 저장 (디바운스)
+    useEffect(() => {
+        const timeout = setTimeout(() => {
+            const state: AppState = { budgetInput, candidates, mode, modeParams };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        }, 1000);
+        return () => clearTimeout(timeout);
+    }, [budgetInput, candidates, mode, modeParams]);
+
+    // 키보드 단축키 (함수는 ref로 참조)
+    const handleOptimizeRef = useRef<() => void>(() => { });
+    const handleShareRef = useRef<() => void>(() => { });
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+            const mod = isMac ? e.metaKey : e.ctrlKey;
+
+            // Ctrl/Cmd + Enter: 최적화 실행
+            if (mod && e.key === "Enter") {
+                e.preventDefault();
+                handleOptimizeRef.current();
+                return;
+            }
+
+            // Ctrl/Cmd + S: 공유 링크
+            if (mod && e.key === "s") {
+                e.preventDefault();
+                handleShareRef.current();
+                return;
+            }
+
+            // Ctrl/Cmd + Z: Undo
+            if (mod && !e.shiftKey && e.key === "z") {
+                e.preventDefault();
+                handleUndo();
+                return;
+            }
+
+            // Ctrl/Cmd + Shift + Z 또는 Ctrl/Cmd + Y: Redo
+            if (mod && (e.shiftKey && e.key === "z" || e.key === "y")) {
+                e.preventDefault();
+                handleRedo();
+                return;
+            }
+
+            // Escape: 단축키 도움말 닫기
+            if (e.key === "Escape") {
+                setShowShortcuts(false);
+            }
+
+            // ?: 단축키 도움말 표시
+            if (e.key === "?") {
+                e.preventDefault();
+                setShowShortcuts(prev => !prev);
+            }
+        };
+
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [handleUndo, handleRedo]);
 
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
@@ -405,6 +571,9 @@ export default function Home() {
         }
     };
 
+    // ref 업데이트 (키보드 단축키용)
+    handleOptimizeRef.current = handleOptimize;
+
     const handleShare = async () => {
         if (!canOptimize || budgetValue === null) {
             setShareMessage("공유 링크를 만들려면 입력을 먼저 수정해 주세요.");
@@ -439,6 +608,9 @@ export default function Home() {
         }
     };
 
+    // ref 업데이트 (키보드 단축키용)
+    handleShareRef.current = handleShare;
+
     const fillTemplate = () => {
         setBudgetInput("399");
         setCandidates(SAMPLE_CANDIDATES.map((candidate) => ({ ...candidate })));
@@ -446,6 +618,17 @@ export default function Home() {
         setModeParams({});
         setResult(null);
         setNotice(null);
+    };
+
+    // 초기화 버튼
+    const handleReset = () => {
+        setBudgetInput("1000");
+        setCandidates(DEFAULT_CANDIDATES.map((c) => ({ ...c })));
+        setMode("all_weather_maximin");
+        setModeParams({});
+        setResult(null);
+        setNotice(null);
+        localStorage.removeItem(STORAGE_KEY);
     };
 
     const showResults = result && (result.status === "ok" || result.status === "infeasible");
@@ -486,11 +669,46 @@ export default function Home() {
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
+                        {/* Undo/Redo 버튼 */}
+                        <div className="hidden sm:flex items-center gap-1 mr-2">
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={handleUndo}
+                                disabled={historyIndex <= 0}
+                                className="h-8 w-8 text-muted-foreground"
+                                title="실행 취소 (Ctrl+Z)"
+                            >
+                                <Undo2 className="w-4 h-4" />
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={handleRedo}
+                                disabled={historyIndex >= history.length - 1}
+                                className="h-8 w-8 text-muted-foreground"
+                                title="다시 실행 (Ctrl+Shift+Z)"
+                            >
+                                <Redo2 className="w-4 h-4" />
+                            </Button>
+                        </div>
+                        <Button variant="ghost" size="sm" onClick={handleReset} className="text-muted-foreground">
+                            <RotateCw className="w-4 h-4 mr-1" /> 초기화
+                        </Button>
                         <Button variant="secondary" size="sm" onClick={fillTemplate}>
                             샘플 불러오기
                         </Button>
                         <Button variant="outline" size="sm" onClick={handleShare}>
                             <Share2 className="w-4 h-4 mr-2" /> 공유 링크
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setShowShortcuts(prev => !prev)}
+                            className="h-8 w-8 text-muted-foreground hidden sm:flex"
+                            title="단축키 보기 (?)"
+                        >
+                            <Keyboard className="w-4 h-4" />
                         </Button>
                     </div>
                 </div>
