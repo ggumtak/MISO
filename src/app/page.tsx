@@ -459,6 +459,7 @@ export default function Home() {
             let lastInfeasible: OptimizationResult | null = null;
             let initialStatus: OptimizationResult["status"] | null = null;
             let initialEV: number | null = null;
+            let initialResponse: OptimizationResult | null = null;
 
             for (const modeId of modeOrder) {
                 const response = await optimizeDistribution(buildRequest(modeId));
@@ -466,6 +467,7 @@ export default function Home() {
                 if (modeId === mode) {
                     initialStatus = response.status;
                     initialEV = getValidEV(response);
+                    initialResponse = response;
                 }
 
                 if (response.status === "infeasible") {
@@ -492,16 +494,32 @@ export default function Home() {
             }
 
             if (!selectedResponse) {
-                if (bestOk) {
+                if (initialResponse && initialResponse.status === "ok") {
+                    setResult(initialResponse);
                     setNotice({
-                        type: "error",
-                        title: "모든 모드에서 기대치가 본전 아래입니다.",
+                        type: "warning",
+                        title: "기대치가 본전(B) 아래입니다.",
                         notes: [
                             "현재 입력 기준으로는 어떤 모드도 기대치가 본전(B) 이상이 나오지 않습니다.",
-                            "다른 모드를 눌러 비교해 보세요.",
+                            "그래도 선택한 모드 기준으로 계산 결과를 표시합니다.",
                         ],
                     });
-                    setResult(null);
+                    return;
+                }
+
+                if (bestOk) {
+                    setResult(bestOk.response);
+                    if (bestOk.mode !== mode) {
+                        setMode(bestOk.mode);
+                    }
+                    setNotice({
+                        type: "warning",
+                        title: "선택한 모드 계산이 어려워 다른 모드 결과를 표시합니다.",
+                        notes: [
+                            `표시 모드: ${getStrategyTitle(bestOk.mode)}${Number.isFinite(bestOk.ev) ? ` (기대치 ${bestOk.ev.toFixed(1)})` : ""}`,
+                            "현재 입력 기준으로는 어떤 모드도 기대치가 본전(B) 이상이 나오지 않습니다.",
+                        ],
+                    });
                     return;
                 }
 
