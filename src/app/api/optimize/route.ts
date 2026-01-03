@@ -518,6 +518,40 @@ function optimizeSparseKFocus(
     return allocation;
 }
 
+function optimizeMaxProbFocus(candidates: CandidateData[], budget: number) {
+    if (candidates.length === 0) return null;
+
+    let bestIndex = 0;
+    let bestP = candidates[0].p;
+    let bestNumer = candidates[0].numer;
+    let bestDenom = candidates[0].denom;
+
+    for (let i = 1; i < candidates.length; i += 1) {
+        const current = candidates[i];
+        if (current.p > bestP + EPS) {
+            bestIndex = i;
+            bestP = current.p;
+            bestNumer = current.numer;
+            bestDenom = current.denom;
+            continue;
+        }
+        if (Math.abs(current.p - bestP) <= EPS) {
+            const left = current.numer * bestDenom;
+            const right = bestNumer * current.denom;
+            if (left > right) {
+                bestIndex = i;
+                bestP = current.p;
+                bestNumer = current.numer;
+                bestDenom = current.denom;
+            }
+        }
+    }
+
+    const allocation = new Array<number>(candidates.length).fill(0);
+    allocation[bestIndex] = budget;
+    return allocation;
+}
+
 function buildResult(
     candidates: CandidateData[],
     payouts: number[][],
@@ -677,6 +711,10 @@ export async function POST(request: Request) {
     let targetT: number | undefined;
 
     switch (mode) {
+        case "max_prob_focus": {
+            allocation = optimizeMaxProbFocus(candidateData, budget);
+            break;
+        }
         case "all_weather_maximin": {
             allocation = optimizeAllWeather(payouts, probabilities, budget);
             break;

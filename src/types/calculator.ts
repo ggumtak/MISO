@@ -8,6 +8,7 @@ export interface Candidate {
 }
 
 export type OptimizationMode =
+    | "max_prob_focus"
     | "all_weather_maximin"
     | "maximize_ev"
     | "ev_with_shortfall_penalty"
