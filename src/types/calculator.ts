@@ -9,7 +9,6 @@ export interface Candidate {
 
 export type OptimizationMode =
     | "balanced_profit"
-    | "maximize_ev"
     | "loss_limit";
 
 export interface OptimizationRequest {
